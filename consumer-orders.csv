@@ -1,0 +1,56 @@
+Consumer Order History - Pharmaceutical Products,Unnamed: 1,Unnamed: 2,Unnamed: 3,Unnamed: 4,Unnamed: 5,Unnamed: 6,Unnamed: 7,Unnamed: 8
+,,,,,,,,
+Patient Demographics and Purchase Data,,,,,,,,
+,,,,,,,,
+Patient ID,Patient Age,Patient Gender,Purchase Date,Product Name,Quantity,Total Price (EUR),Dosage Frequency,Prescription Required
+PAT001,45,F,2024-03-15 00:00:00,"Panthenol Spray, 46,3 mg/g Schaum zur Anwendung auf der Haut",1,16.95,Once daily,No
+PAT002,62,M,2024-03-14 00:00:00,NORSAN Omega-3 Total,2,54,Once daily,No
+PAT003,38,F,2024-03-14 00:00:00,Vividrin® iso EDO® antiallergische Augentropfen,1,8.28,Twice daily,No
+PAT004,55,M,2024-03-13 00:00:00,Mucosolvan 1 mal täglich Retardkapseln,1,39.97,Once daily,Yes
+PAT005,29,F,2024-03-12 00:00:00,Paracetamol apodiscounter 500 mg Tabletten,3,6.18,As needed,No
+PAT001,45,F,2024-03-10 00:00:00,"Iberogast® Classic, Flüssigkeit zum Einnehmen",1,28.98,Three times daily,No
+PAT006,71,M,2024-03-09 00:00:00,Ramipril - 1 A Pharma® 10 mg Tabletten,2,25.18,Once daily,Yes
+PAT007,33,F,2024-03-09 00:00:00,Centrum Vital+ Mentale Leistung,1,19.95,Once daily,No
+PAT008,42,M,2024-03-08 00:00:00,"Minoxidil BIO-H-TIN-Pharma 20 mg/ml Spray zur Anwendung auf der Haut (Kopfhaut), Lösung",1,22.5,Twice daily,Yes
+PAT002,62,M,2024-03-07 00:00:00,"Cetirizin HEXAL® Tropfen bei Allergien, 10 mg/ml Tropfen zum Einnehmen, Lösung",1,13.19,Once daily,No
+PAT009,58,F,2024-03-06 00:00:00,Prostata Men Kapseln,1,19.99,Twice daily,No
+PAT010,27,F,2024-03-05 00:00:00,Natural Intimate Creme,1,18.9,As needed,No
+PAT003,38,F,2024-03-04 00:00:00,NORSAN Omega-3 Vegan,1,29,Once daily,No
+PAT011,64,M,2024-03-03 00:00:00,Cystinol akut®,2,53,Three times daily,No
+PAT012,50,F,2024-03-02 00:00:00,Kijimea Reizdarm PRO,1,38.99,Once daily,No
+PAT006,71,M,2024-03-01 00:00:00,Nurofen 200 mg Schmelztabletten Lemon,1,10.98,As needed,No
+PAT013,31,M,2024-02-29 00:00:00,Eucerin DERMOPURE Triple Effect Reinigungsgel,1,17.25,Once daily,No
+PAT014,47,F,2024-02-28 00:00:00,OMNi-BiOTiC SR-9 mit B-Vitaminen,1,44.5,Once daily,No
+PAT015,39,M,2024-02-27 00:00:00,Vitasprint Pro Energie,2,31.9,Once daily,No
+PAT001,45,F,2024-02-25 00:00:00,Aveeno Skin Relief Body Lotion,1,14.99,Twice daily,No
+PAT016,53,F,2024-02-24 00:00:00,femiLoges® 4 mg magensaftresistente Tabletten,1,20.44,Once daily,Yes
+PAT017,68,M,2024-02-23 00:00:00,Vigantolvit 2000 I.E. Vitamin D3,1,17.99,Once daily,No
+PAT018,36,F,2024-02-22 00:00:00,Eucerin UreaRepair PLUS Lotion 10%,1,27.75,Once daily,No
+PAT008,42,M,2024-02-21 00:00:00,Diclo-ratiopharm Schmerzgel,1,8.89,Three times daily,No
+PAT019,44,F,2024-02-20 00:00:00,Calmvalera Hevert Tropfen,1,35.97,Twice daily,No
+PAT020,60,M,2024-02-19 00:00:00,COLPOFIX®,1,49.6,As needed,Yes
+PAT002,62,M,2024-02-18 00:00:00,Sinupret® Saft,1,13.3,Three times daily,No
+PAT011,64,M,2024-02-17 00:00:00,Vitasprint B12 Kapseln,1,17.04,Once daily,No
+PAT021,28,F,2024-02-16 00:00:00,frida baby FlakeFixer,1,0,As needed,No
+PAT022,52,M,2024-02-15 00:00:00,proBIO 6 Probiotik Kapseln APOMIA,1,34.9,Once daily,No
+PAT023,41,F,2024-02-14 00:00:00,Redcare Wundschutzcreme,1,14.39,As needed,No
+PAT024,57,M,2024-02-13 00:00:00,Umckaloabo® Saft für Kinder,2,26.3,Three times daily,No
+PAT003,38,F,2024-02-12 00:00:00,Hyaluron-ratiopharm® Augentropfen,1,13.74,Twice daily,No
+PAT025,63,F,2024-02-11 00:00:00,"DulcoLax® Dragées, 5 mg magensaftresistente Tabletten",1,22.9,As needed,No
+PAT026,35,M,2024-02-10 00:00:00,"Bepanthen WUND- UND HEILSALBE, 50 mg/g Salbe",1,7.69,Twice daily,No
+PAT001,45,F,2024-02-09 00:00:00,"Magnesium Verla® N Dragées, magensaftresistente Tabletten",1,6.4,Once daily,No
+PAT027,49,F,2024-02-08 00:00:00,V-Biotics Flora Complex,1,19.9,Once daily,No
+PAT028,66,M,2024-02-07 00:00:00,"GRANU FINK® femina, Hartkapseln",1,20.29,Once daily,No
+PAT008,42,M,2024-02-06 00:00:00,Cetaphil Sanft glättende SA Reinigung,1,13.95,Once daily,No
+PAT029,32,F,2024-02-05 00:00:00,Multivitamin Fruchtgummibärchen vegan u zuckerfrei,1,12.74,Once daily,No
+PAT030,59,M,2024-02-04 00:00:00,MULTILAC Darmsynbiotikum,1,9.99,Once daily,No
+PAT006,71,M,2024-02-03 00:00:00,Vitasprint Duo Energie,1,16.95,Once daily,No
+PAT031,43,F,2024-02-02 00:00:00,SAW PALMETO (SÄGEPALME) 350 mg,1,8.47,Once daily,No
+PAT002,62,M,2024-02-01 00:00:00,Aqualibra 80 mg/90 mg/180 mg Filmtabletten,1,27.82,Twice daily,Yes
+PAT032,37,M,2024-01-31 00:00:00,Augentropfen RedCare,1,12.69,Three times daily,No
+PAT033,54,F,2024-01-30 00:00:00,Vitamin B-Komplex-ratiopharm,1,24.97,Once daily,No
+PAT001,45,F,2024-01-29 00:00:00,"FeniHydrocort Creme 0,25 %",1,8.59,Twice daily,No
+PAT034,48,M,2024-01-28 00:00:00,"Livocab® direkt Augentropfen, 0,05 % Augentropfen, Suspension",1,14.99,Twice daily,Yes
+PAT035,30,F,2024-01-27 00:00:00,Osa Schorf Spray,1,15.45,As needed,No
+PAT008,42,M,2024-01-26 00:00:00,Cromo-ratiopharm® Augentropfen Einzeldosis,1,7.59,As needed,No
+PAT002,62,M,2024-01-25 00:00:00,"Loperamid akut - 1 A Pharma®, 2 mg Hartkapseln",1,3.93,As needed,No
