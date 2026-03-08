@@ -412,7 +412,7 @@ MIT License — see LICENSE file for details.
 
 <div align="center">
 
-**Built with ❤️ for the hackathon by Gulamgous amjat khan**
+**Built by Gulamgous Amjat Khan**
 
 *PharmaAgent AI — Making pharmacy intelligent, safe, and accessible*
 
