@@ -161,7 +161,7 @@ def seed_admin_user(db: Session) -> None:
         admin = User(
             name="Admin",
             email="admin@gmail.com",
-            password_hash=hash_password("Kingkhan_Secure@2026!"),
+            password_hash=hash_password("Kingkhan@12"),
             role="admin",
             is_approved=1
         )
