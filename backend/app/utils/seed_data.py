@@ -144,32 +144,34 @@ def seed_medicines(db: Session) -> None:
 
 def seed_admin_user(db: Session) -> None:
     """
-    Create a default admin user if none exists.
-
-    Admin credentials:
-        Email: admin@pharmaagent.com
-        Password: admin123
-
-    Args:
-        db: SQLAlchemy database session
+    Create or update the default admin user.
+    Admin credentials: admin@gmail.com / Kingkhan@12
     """
     from app.models.user import User
     from app.utils.security import hash_password
 
-    existing_admin = db.query(User).filter(User.role == "admin").first()
-    if not existing_admin:
+    admin_email = "admin@gmail.com"
+    admin_password = "Kingkhan@12"
+
+    admin = db.query(User).filter(User.email == admin_email).first()
+    if not admin:
         admin = User(
             name="Admin",
-            email="admin@gmail.com",
-            password_hash=hash_password("Kingkhan@12"),
+            email=admin_email,
+            password_hash=hash_password(admin_password),
             role="admin",
             is_approved=1
         )
         db.add(admin)
         db.commit()
-        logger.info("Default admin user created: admin@pharmaagent.com / admin123")
+        logger.info(f"Created admin user: {admin_email}")
     else:
-        logger.info("Admin user already exists, skipping.")
+        # Update existing admin with new credentials
+        admin.password_hash = hash_password(admin_password)
+        admin.role = "admin"
+        admin.is_approved = 1
+        db.commit()
+        logger.info(f"Updated existing admin user: {admin_email}")
 
 
 def seed_pharmacist_user(db: Session) -> None:
