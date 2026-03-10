@@ -9,20 +9,14 @@ import GlassCard from "@/components/GlassCard";
 
 export default function LoginPage() {
     const router = useRouter();
-    const [form, setForm] = useState({ email: "john@example.com", password: "user123" });
+    const [form, setForm] = useState({ email: "", password: "" });
     const [selectedRole, setSelectedRole] = useState("user");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
     const handleRoleSelect = (role: string) => {
         setSelectedRole(role);
-        if (role === "admin") {
-            setForm({ email: "admin@pharmaagent.com", password: "admin123" });
-        } else if (role === "pharmacist") {
-            setForm({ email: "pharmacist@pharmaagent.com", password: "pharma123" });
-        } else {
-            setForm({ email: "john@example.com", password: "user123" });
-        }
+        setForm({ email: "", password: "" });
     };
 
     const handleSubmit = async (e: FormEvent) => {
@@ -92,7 +86,7 @@ export default function LoginPage() {
                         ))}
                     </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                    <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
                         <div>
                             <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1.5" htmlFor="email">
                                 Email Address
