@@ -127,6 +127,27 @@ export async function loginUser(data: LoginData): Promise<AuthResponse> {
     });
 }
 
+/**
+ * Fetch all pharmacists awaiting admin approval.
+ * Admin role required.
+ */
+export async function getPendingPharmacists(): Promise<AuthResponse["user"][]> {
+    return apiFetch<AuthResponse["user"][]>("/admin/pharmacists/pending", {
+        headers: authHeader(),
+    });
+}
+
+/**
+ * Approve a pharmacist account.
+ * Admin role required.
+ */
+export async function approvePharmacist(userId: number): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>(`/admin/pharmacists/${userId}/approve`, {
+        method: "POST",
+        headers: authHeader(),
+    });
+}
+
 // ---------------------------------------------------------------------------
 // Medicine API
 // ---------------------------------------------------------------------------

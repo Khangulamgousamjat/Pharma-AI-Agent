@@ -160,9 +160,10 @@ def seed_admin_user(db: Session) -> None:
     if not existing_admin:
         admin = User(
             name="Admin",
-            email="admin@pharmaagent.com",
-            password_hash=hash_password("admin123"),
+            email="Admin12",
+            password_hash=hash_password("Kingkhan@12"),
             role="admin",
+            is_approved=1
         )
         db.add(admin)
         db.commit()
@@ -196,6 +197,7 @@ def seed_pharmacist_user(db: Session) -> None:
             email="pharmacist@pharmaagent.com",
             password_hash=hash_password("pharma123"),
             role="pharmacist",
+            is_approved=1
         )
         db.add(pharmacist)
         db.commit()
@@ -224,6 +226,7 @@ def seed_demo_user(db: Session) -> None:
             email="john@example.com",
             password_hash=hash_password("user123"),
             role="user",
+            is_approved=1
         )
         db.add(demo_user)
         db.commit()

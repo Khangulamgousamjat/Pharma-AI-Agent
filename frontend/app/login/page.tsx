@@ -135,12 +135,14 @@ export default function LoginPage() {
                         </button>
                     </form>
 
-                    <p className="text-center text-slate-600 dark:text-slate-400 text-sm mt-6">
-                        Don&apos;t have an account?{" "}
-                        <Link href="/register" className="text-indigo-400 hover:text-indigo-300 font-medium">
-                            Register here
-                        </Link>
-                    </p>
+                    {selectedRole !== "admin" && (
+                        <p className="text-center text-slate-600 dark:text-slate-400 text-sm mt-6">
+                            Don&apos;t have an account?{" "}
+                            <Link href="/register" className="text-indigo-400 hover:text-indigo-300 font-medium">
+                                Register here
+                            </Link>
+                        </p>
+                    )}
                 </GlassCard>
             </div>
         </div>

@@ -14,14 +14,15 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import GlassCard from "@/components/GlassCard";
 import { getUser } from "@/lib/auth";
-import { getMedicines, getAllOrders, type Medicine, type Order } from "@/lib/api";
+import { getMedicines, getAllOrders, getPendingPharmacists, approvePharmacist, type Medicine, type Order, type AuthResponse } from "@/lib/api";
 
 export default function AdminPage() {
     const router = useRouter();
     const [medicines, setMedicines] = useState<Medicine[]>([]);
     const [orders, setOrders] = useState<Order[]>([]);
+    const [pendingPharmacists, setPendingPharmacists] = useState<AuthResponse["user"][]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<"inventory" | "orders">("inventory");
+    const [activeTab, setActiveTab] = useState<"inventory" | "orders" | "approvals">("inventory");
 
     useEffect(() => {
         const user = getUser();
@@ -29,15 +30,33 @@ export default function AdminPage() {
             router.push("/dashboard");
             return;
         }
-        // Load both medicines and orders in parallel
-        Promise.all([getMedicines(), getAllOrders()])
-            .then(([meds, ords]) => {
+        refreshData();
+    }, []);
+
+    const refreshData = () => {
+        setLoading(true);
+        Promise.all([
+            getMedicines(),
+            getAllOrders(),
+            getPendingPharmacists().catch(() => []) // Fallback if API fails
+        ])
+            .then(([meds, ords, pharmas]) => {
                 setMedicines(meds);
                 setOrders(ords);
+                setPendingPharmacists(pharmas);
             })
             .catch(console.error)
             .finally(() => setLoading(false));
-    }, []);
+    };
+
+    const handleApprove = async (userId: number) => {
+        try {
+            await approvePharmacist(userId);
+            refreshData(); // Refresh list after approval
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Approval failed");
+        }
+    };
 
     const lowStockCount = medicines.filter((m) => m.stock < 50).length;
 
@@ -134,7 +153,7 @@ export default function AdminPage() {
 
                 {/* Tab Switcher */}
                 <div className="flex gap-2 mb-4">
-                    {(["inventory", "orders"] as const).map((tab) => (
+                    {(["inventory", "orders", "approvals"] as const).map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
@@ -143,7 +162,7 @@ export default function AdminPage() {
                                 : "text-slate-600 dark:text-slate-400 hover:text-[var(--text-color)] hover:bg-black/10 dark:bg-white/10"
                                 }`}
                         >
-                            {tab === "inventory" ? "💊 Inventory" : "📦 Orders"}
+                            {tab === "inventory" ? "💊 Inventory" : tab === "orders" ? "📦 Orders" : "🛡️ Approvals"}
                         </button>
                     ))}
                 </div>
@@ -237,6 +256,58 @@ export default function AdminPage() {
                                 <div className="text-center p-10 text-slate-600 dark:text-slate-400">
                                     <div className="text-3xl mb-2">📭</div>
                                     <p>No orders yet.</p>
+                                </div>
+                            )}
+                        </div>
+                    </GlassCard>
+                )}
+
+                {/* Approvals Table */}
+                {activeTab === "approvals" && (
+                    <GlassCard hover={false} padding="none">
+                        <div className="p-5 border-b border-black/10 dark:border-white/10">
+                            <h2 className="font-bold text-[var(--text-color)]">Pending Pharmacist Approvals</h2>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="table-glass">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Date</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {pendingPharmacists.map((user) => (
+                                        <tr key={user.id}>
+                                            <td className="text-indigo-400 font-mono text-xs">#{user.id}</td>
+                                            <td className="text-[var(--text-color)] font-medium">{user.name}</td>
+                                            <td className="text-slate-600 dark:text-slate-400">{user.email}</td>
+                                            <td>
+                                                <span className="badge-warning capitalize">{user.role}</span>
+                                            </td>
+                                            <td className="text-slate-500 text-xs">
+                                                {user.created_at ? new Date(user.created_at).toLocaleDateString() : "—"}
+                                            </td>
+                                            <td>
+                                                <button
+                                                    onClick={() => handleApprove(user.id)}
+                                                    className="px-3 py-1 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-md text-xs hover:bg-emerald-600/30 transition-all font-medium"
+                                                >
+                                                    Approve
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            {pendingPharmacists.length === 0 && (
+                                <div className="text-center p-10 text-slate-600 dark:text-slate-400">
+                                    <div className="text-3xl mb-2">✅</div>
+                                    <p>No pending approvals.</p>
                                 </div>
                             )}
                         </div>

@@ -14,6 +14,7 @@ class UserRegister(BaseModel):
     name: str = Field(..., min_length=2, max_length=100, description="User's display name")
     email: EmailStr = Field(..., description="Valid email address")
     password: str = Field(..., min_length=6, description="Password (min 6 characters)")
+    role: str = Field("user", regex="^(user|pharmacist)$", description="Role: 'user' or 'pharmacist'")
 
 
 class UserLogin(BaseModel):

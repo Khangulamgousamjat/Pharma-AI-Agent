@@ -40,25 +40,45 @@ def register_user(db: Session, data: UserRegister) -> TokenResponse:
             detail="Email already registered. Please use a different email or login.",
         )
 
+    # Block admin registration
+    if data.role == "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin registration is not allowed. Please use the pre-defined admin account.",
+        )
+
+    # Determine approval status based on role
+    # Pharmacists (role='pharmacist') require approval (is_approved=0)
+    # Regular users (role='user') are auto-approved (is_approved=1)
+    is_approved = 1 if data.role == "user" else 0
+
     # Hash password before storing — NEVER save plaintext
     user = User(
         name=data.name,
         email=data.email,
         password_hash=hash_password(data.password),
-        role="user",
+        role=data.role,
+        is_approved=is_approved,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
 
-    # Generate JWT for immediate authentication
+    # For pharmacists, don't return a token yet (they need approval)
+    if not is_approved:
+        return TokenResponse(
+            access_token="",
+            user=UserResponse.model_validate(user),
+        )
+
+    # Generate JWT for immediate authentication for auto-approved users
     token = create_access_token({
         "sub": user.email,
         "user_id": user.id,
         "role": user.role,
     })
 
-    logger.info(f"New user registered: {user.email} (id={user.id})")
+    logger.info(f"New user registered: {user.email} (id={user.id}, role={user.role})")
     return TokenResponse(
         access_token=token,
         user=UserResponse.model_validate(user),
@@ -88,6 +108,13 @@ def login_user(db: Session, data: UserLogin) -> TokenResponse:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password.",
             headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Check if user is approved (pharmacists require approval)
+    if not user.is_approved:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is pending admin approval. Please check back later.",
         )
 
     # Issue JWT token

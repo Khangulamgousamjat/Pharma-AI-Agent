@@ -23,6 +23,8 @@ class User(Base):
         role: 'user' | 'admin' | 'pharmacist'
         ui_theme: 'dark' | 'light' — persisted UI preference (Phase 3)
         preferred_language: ISO code — 'en' | 'hi' | 'mr' (Phase 3)
+        is_approved: True for users/admin, False for unapproved pharmacists
+        created_at: Account creation timestamp
         created_at: Account creation timestamp
     """
 
@@ -33,6 +35,7 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
     role = Column(String(20), default="user", nullable=False)
+    is_approved = Column(Integer, default=1, server_default="1", nullable=False) # 1 = True, 0 = False. We use Integer for SQLite compatibility with booleans.
 
     # Phase 3: UI personalisation — stored in DB + synced to localStorage on login
     ui_theme = Column(String(10), default="dark", nullable=False)

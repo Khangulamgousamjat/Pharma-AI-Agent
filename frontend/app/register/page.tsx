@@ -18,13 +18,15 @@ import GlassCard from "@/components/GlassCard";
 
 export default function RegisterPage() {
     const router = useRouter();
-    const [form, setForm] = useState({ name: "", email: "", password: "" });
+    const [form, setForm] = useState({ name: "", email: "", password: "", role: "user" });
     const [error, setError] = useState("");
+    const [successMessage, setSuccessMessage] = useState("");
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setError("");
+        setSuccessMessage("");
         if (form.password.length < 6) {
             setError("Password must be at least 6 characters.");
             return;
@@ -32,13 +34,20 @@ export default function RegisterPage() {
         setLoading(true);
         try {
             const res = await registerUser(form);
-            saveAuth(res.access_token, {
-                id: res.user.id,
-                name: res.user.name,
-                email: res.user.email,
-                role: res.user.role as "user" | "admin",
-            });
-            router.push("/dashboard");
+
+            if (form.role === "pharmacist") {
+                setSuccessMessage("Registration successful! Your account is pending admin approval. You will be able to log in once approved.");
+                // Reset form
+                setForm({ name: "", email: "", password: "", role: "pharmacist" });
+            } else {
+                saveAuth(res.access_token, {
+                    id: res.user.id,
+                    name: res.user.name,
+                    email: res.user.email,
+                    role: res.user.role as "user" | "admin" | "pharmacist",
+                });
+                router.push("/chat");
+            }
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "Registration failed.");
         } finally {
@@ -65,14 +74,31 @@ export default function RegisterPage() {
                 <GlassCard>
                     <h2 className="text-xl font-bold text-[var(--text-color)] mb-6">Create Account</h2>
 
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                    <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+                        {/* Role Selector */}
+                        <div className="flex gap-2 p-1 bg-white dark:bg-slate-800/50 rounded-lg mb-4 border border-white/5">
+                            {["user", "pharmacist"].map((role) => (
+                                <button
+                                    key={role}
+                                    type="button"
+                                    onClick={() => setForm({ ...form, role })}
+                                    className={`flex-1 py-1.5 px-3 rounded-md text-xs font-medium transition-all capitalize ${form.role === role
+                                        ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/20"
+                                        : "text-slate-600 dark:text-slate-400 hover:text-indigo-400"
+                                        }`}
+                                >
+                                    {role}
+                                </button>
+                            ))}
+                        </div>
+
                         <div>
                             <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1.5" htmlFor="name">Full Name</label>
                             <input
                                 id="name"
                                 type="text"
                                 required
-                                placeholder="John Doe"
+                                placeholder="Enter your full name"
                                 className="input-glass"
                                 value={form.name}
                                 onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -85,7 +111,7 @@ export default function RegisterPage() {
                                 id="email"
                                 type="email"
                                 required
-                                placeholder="you@example.com"
+                                placeholder="Enter your email"
                                 className="input-glass"
                                 value={form.email}
                                 onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -108,6 +134,12 @@ export default function RegisterPage() {
                         {error && (
                             <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
                                 ⚠️ {error}
+                            </div>
+                        )}
+
+                        {successMessage && (
+                            <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">
+                                ✅ {successMessage}
                             </div>
                         )}
 

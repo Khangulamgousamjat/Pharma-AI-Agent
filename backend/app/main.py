@@ -29,7 +29,7 @@ from app.routes import auth, medicines, orders, agent, payment
 from app.routes import prescriptions, pharmacist, refill_alerts
 
 # Phase 3 routers
-from app.routes import voice_routes, symptom_routes, webhook_routes, analytics_routes, settings_routes
+from app.routes import voice_routes, symptom_routes, webhook_routes, analytics_routes, settings_routes, admin_users
 
 # Configure logging
 logging.basicConfig(
@@ -68,7 +68,6 @@ async def lifespan(app: FastAPI):
         seed_medicines(db)
         seed_admin_user(db)
         seed_pharmacist_user(db)  # Phase 2: adds pharmacist account
-        seed_demo_user(db)  # Demo user for login page "user" tab (john@example.com / user123)
     finally:
         db.close()
 
@@ -150,6 +149,7 @@ app.include_router(symptom_routes.router)    # /symptom/check, /symptom/continue
 app.include_router(webhook_routes.router)    # /webhook/simulate, /retrigger/{id}, /events/{id}
 app.include_router(analytics_routes.router)  # /analytics/overview, /medicines, /refills, /fulfillment
 app.include_router(settings_routes.router)   # /settings/preferences
+app.include_router(admin_users.router)       # /admin/pharmacists/pending, /admin/pharmacists/approve
 
 
 # ---------------------------------------------------------------------------
