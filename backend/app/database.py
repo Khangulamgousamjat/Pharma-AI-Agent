@@ -91,29 +91,4 @@ def init_db():
 
     logger.info("Creating database tables...")
     Base.metadata.create_all(bind=engine)
-    
-    # Seed default admin if missing
-    from app.models.user import User
-    from app.utils.security import hash_password
-    db = SessionLocal()
-    try:
-        admin = db.query(User).filter(User.role == "admin").first()
-        if not admin:
-            logger.info("Seeding default admin user...")
-            admin = User(
-                name="Admin",
-                email="admin@pharmaagent.com",
-                password_hash=hash_password("admin123"),
-                role="admin",
-                is_approved=1
-            )
-            db.add(admin)
-            db.commit()
-            logger.info("Default admin created: admin@pharmaagent.com")
-    except Exception as e:
-        logger.error(f"Error seeding admin: {e}")
-        db.rollback()
-    finally:
-        db.close()
-        
     logger.info("Database tables ready.")
