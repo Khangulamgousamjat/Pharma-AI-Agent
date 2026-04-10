@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: pharmaagent-api
+    env: python
+    plan: free
+    buildCommand: "cd backend && pip install --no-cache-dir -r requirements.txt"
+    startCommand: "cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      - key: APP_ENV
+        value: "production"
+      - key: DATABASE_URL
+        value: "sqlite:///./pharmaagent.db"
+      - key: CORS_ORIGINS
+        value: "https://pharma-ai-agent.vercel.app"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: "HS256"
+      - key: JWT_EXPIRE_MINUTES
+        value: "1440"
+      - key: GEMINI_API_KEY
+        sync: false
