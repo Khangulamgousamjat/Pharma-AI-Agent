@@ -20,6 +20,11 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = "postgresql://postgres:password@localhost:5432/pharmaagent"
+    
+    # ─── SUPABASE STORAGE ────────────────────────────────────────────────────────
+    supabase_url: str = "https://gghdhcjtvtsmotbagiqs.supabase.co"
+    supabase_key: str = ""
+    supabase_bucket: str = "uploads"
 
     # JWT Security
     jwt_secret: str = "change-this-in-production"

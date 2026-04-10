@@ -23,10 +23,17 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from supabase import create_client, Client
 import google.generativeai as genai
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Initialize Supabase client
+supabase: Optional[Client] = None
+if settings.supabase_url and settings.supabase_key:
+    supabase = create_client(settings.supabase_url, settings.supabase_key)
+    logger.info("Supabase Storage client initialized.")
 
 # ---------------------------------------------------------------------------
 # Vision Model Configuration
@@ -79,18 +86,19 @@ the JSON with null values and explain in raw_text what you see.
 """
 
 
-async def extract_medicine_data_from_image(image_path: str) -> dict:
+async def extract_medicine_data_from_image(file_bytes: bytes, filename: str) -> dict:
     """
     Extract structured medicine data from a prescription image using Gemini Vision.
 
     Process:
-    1. Reads the image file from disk
-    2. Encodes it as base64
+    1. Reads memory bytes directly
+    2. Determines MIME type
     3. Sends to Gemini Vision with a structured extraction prompt
     4. Parses the JSON response into a typed dict
 
     Args:
-        image_path: Absolute path to the saved image file
+        file_bytes: Raw bytes of the image
+        filename: Name of the file uploaded
 
     Returns:
         dict: Structured extraction result:
@@ -105,29 +113,11 @@ async def extract_medicine_data_from_image(image_path: str) -> dict:
                 "error": str | None  (only if success=False)
             }
     """
-    logger.info(f"[VisionService] Processing image: {image_path}")
-
-    # Verify file exists
-    if not os.path.exists(image_path):
-        logger.error(f"[VisionService] Image file not found: {image_path}")
-        return {
-            "success": False,
-            "error": f"Image file not found: {image_path}",
-            "medicine_name": None,
-            "dosage": None,
-            "quantity": None,
-            "instructions": None,
-            "raw_text": None,
-            "confidence": "low",
-        }
+    logger.info(f"[VisionService] Processing image bytes: {filename}")
 
     try:
-        # Read and encode the image
-        with open(image_path, "rb") as img_file:
-            image_data = img_file.read()
-
         # Determine MIME type from extension
-        ext = Path(image_path).suffix.lower()
+        ext = Path(filename).suffix.lower()
         mime_map = {
             ".jpg": "image/jpeg",
             ".jpeg": "image/jpeg",
@@ -141,11 +131,11 @@ async def extract_medicine_data_from_image(image_path: str) -> dict:
         model = _get_vision_model()
         image_part = {
             "mime_type": mime_type,
-            "data": image_data,
+            "data": file_bytes,
         }
 
         # Send to Gemini Vision API
-        logger.info(f"[VisionService] Sending {len(image_data)} bytes to Gemini Vision...")
+        logger.info(f"[VisionService] Sending {len(file_bytes)} bytes to Gemini Vision...")
         response = model.generate_content([EXTRACTION_PROMPT, image_part])
 
         raw_response = response.text.strip()
@@ -205,34 +195,47 @@ async def extract_medicine_data_from_image(image_path: str) -> dict:
         }
 
 
-def save_uploaded_image(file_bytes: bytes, filename: str, upload_dir: str) -> str:
+def save_uploaded_image(file_bytes: bytes, filename: str) -> str:
     """
-    Save an uploaded prescription image to the local filesystem.
-
-    Creates the upload directory if it does not exist.
-    Appends a timestamp to avoid filename collisions.
+    Save an uploaded prescription image directly to Supabase Storage.
 
     Args:
         file_bytes: Raw image bytes from the multipart upload
         filename: Original filename from the upload request
-        upload_dir: Base directory for storing uploads
 
     Returns:
-        str: Absolute path to the saved file
+        str: Public URL path to the saved file
     """
     import time
-
-    # Create upload directory if it doesn't exist
-    os.makedirs(upload_dir, exist_ok=True)
+    
+    if not supabase:
+        raise ValueError("Supabase is not configured properly in the environment.")
 
     # Generate unique filename to avoid collisions
     timestamp = int(time.time())
     ext = Path(filename).suffix.lower() or ".jpg"
     safe_name = f"prescription_{timestamp}{ext}"
-    save_path = os.path.join(upload_dir, safe_name)
 
-    with open(save_path, "wb") as f:
-        f.write(file_bytes)
-
-    logger.info(f"[VisionService] Image saved: {save_path} ({len(file_bytes)} bytes)")
-    return save_path
+    try:
+        bucket = settings.supabase_bucket
+        
+        # Determine content type
+        content_type = "image/jpeg"
+        if ext == ".png": content_type = "image/png"
+        elif ext == ".webp": content_type = "image/webp"
+        
+        # Upload buffer to Supabase
+        res = supabase.storage.from_(bucket).upload(
+            file=file_bytes,
+            path=safe_name,
+            file_options={"content-type": content_type}
+        )
+        
+        # Retrieve the public URL
+        public_url = supabase.storage.from_(bucket).get_public_url(safe_name)
+        
+        logger.info(f"[VisionService] Image uploaded to Supabase: {public_url}")
+        return public_url
+    except Exception as e:
+        logger.error(f"[VisionService] Supabase upload failed: {e}")
+        raise e
