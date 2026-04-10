@@ -71,10 +71,8 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
 
-    # Create uploads directory for prescription images
-    upload_dir = getattr(settings, "upload_dir", "uploads")
-    os.makedirs(upload_dir, exist_ok=True)
-    logger.info(f"Prescription uploads directory: {upload_dir}")
+    # Files are now securely uploaded to Supabase Storage, bypassing local saves.
+    logger.info("Cloud storage configuration initialized.")
 
     logger.info("✅ Backend ready. API docs available at http://localhost:8000/docs")
 

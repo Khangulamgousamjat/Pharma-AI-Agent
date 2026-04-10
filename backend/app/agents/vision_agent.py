@@ -59,7 +59,7 @@ class VisionAgent:
         self.agent_name = "VisionAgent"
         logger.info("VisionAgent initialized.")
 
-    async def extract(self, image_path: str) -> dict:
+    async def extract(self, file_bytes: bytes, filename: str) -> dict:
         """
         Extract medicine information from a prescription image.
 
@@ -67,7 +67,8 @@ class VisionAgent:
         wraps the call in LangSmith tracing for observability.
 
         Args:
-            image_path: Absolute path to the image file on disk
+            file_bytes: Raw bytes of the image file
+            filename: Original file name from the upload
 
         Returns:
             dict: Structured extraction:
@@ -82,16 +83,16 @@ class VisionAgent:
                     "agent": "VisionAgent"
                 }
         """
-        logger.info(f"[VisionAgent] Processing image: {image_path}")
+        logger.info(f"[VisionAgent] Processing image bytes: {filename}")
 
         # ---------------------------------------------------------------------------
         # Execute Vision Extraction
         # Wrapped in LangSmith trace if available, otherwise runs directly
         # ---------------------------------------------------------------------------
         if LANGSMITH_AVAILABLE:
-            result = await self._traced_extract(image_path)
+            result = await self._traced_extract(file_bytes, filename)
         else:
-            result = await extract_medicine_data_from_image(image_path)
+            result = await extract_medicine_data_from_image(file_bytes, filename)
 
         # Add agent metadata to result
         result["agent"] = self.agent_name
@@ -103,18 +104,19 @@ class VisionAgent:
         )
         return result
 
-    async def _traced_extract(self, image_path: str) -> dict:
+    async def _traced_extract(self, file_bytes: bytes, filename: str) -> dict:
         """
         Execute extraction with LangSmith tracing.
 
         LangSmith captures:
-          - Input: image_path
+          - Input: file_bytes
           - Output: structured extraction dict
           - Tags: ['vision-agent', 'gemini-vision']
-          - Metadata: model name, file path
+          - Metadata: model name, file name
 
         Args:
-            image_path: Path to image file
+            file_bytes: Raw bytes of the image file
+            filename: Name of the file
 
         Returns:
             dict: Extraction result
@@ -123,11 +125,11 @@ class VisionAgent:
             from langsmith import Client
             # LangSmith auto-traces if LANGCHAIN_TRACING_V2=true in env
             # The traceable decorator would require sync — for async we log manually
-            result = await extract_medicine_data_from_image(image_path)
+            result = await extract_medicine_data_from_image(file_bytes, filename)
             return result
         except Exception as e:
             logger.error(f"[VisionAgent] Traced extraction failed: {e}")
-            return await extract_medicine_data_from_image(image_path)
+            return await extract_medicine_data_from_image(file_bytes, filename)
 
 
 # ---------------------------------------------------------------------------

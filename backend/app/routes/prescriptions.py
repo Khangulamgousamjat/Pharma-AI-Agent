@@ -85,12 +85,12 @@ async def upload_prescription(
         f"size={len(file_bytes)} bytes type={file.content_type}"
     )
 
-    # Save image to disk
-    image_path = save_uploaded_image(file_bytes, file.filename or "prescription.jpg", UPLOAD_DIR)
+    # Save image to Supabase
+    image_url = save_uploaded_image(file_bytes, file.filename or "prescription.jpg")
 
-    # Process with Vision Agent
+    # Process with Vision Agent using raw bytes
     vision_agent = get_vision_agent()
-    extracted = await vision_agent.extract(image_path)
+    extracted = await vision_agent.extract(file_bytes, file.filename or "prescription.jpg")
 
     if not extracted.get("success") and not extracted.get("raw_text"):
         logger.error(f"Vision extraction failed: {extracted.get('error')}")
@@ -100,7 +100,7 @@ async def upload_prescription(
         extracted["raw_text"] = extracted.get("error", "Extraction failed")
 
     # Save prescription record (verified=False pending pharmacist review)
-    prescription = create_prescription(db, user_id, image_path, extracted)
+    prescription = create_prescription(db, user_id, image_url, extracted)
 
     return PrescriptionUploadResponse(
         prescription_id=prescription.id,

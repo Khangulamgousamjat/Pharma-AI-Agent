@@ -11,7 +11,11 @@ services:
       - key: APP_ENV
         value: "production"
       - key: DATABASE_URL
-        value: "sqlite:///./pharmaagent.db"
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
       - key: CORS_ORIGINS
         value: "https://pharma-ai-agent.vercel.app"
       - key: JWT_SECRET
