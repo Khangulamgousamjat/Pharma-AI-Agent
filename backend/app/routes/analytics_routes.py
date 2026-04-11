@@ -12,7 +12,7 @@ Access: Currently open (for demo). In production, add JWT admin check.
 import logging
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Annotated
 
 from app.database import SessionLocal, get_db
 from app.services.analytics_service import (
@@ -34,7 +34,7 @@ router = APIRouter(prefix="/analytics", tags=["Analytics"])
     summary="Get high-level KPI overview",
     description="Returns total orders, revenue, users, prescriptions and their statuses.",
 )
-def analytics_overview(db: Session = Depends(get_db)):
+def analytics_overview(db: Annotated[Session, Depends(get_db)]):
     """
     Top-level analytics KPIs for the admin dashboard header cards.
 
@@ -53,7 +53,7 @@ def analytics_overview(db: Session = Depends(get_db)):
 )
 def analytics_top_medicines(
     n: int = Query(default=10, ge=1, le=50, description="Number of top medicines"),
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Top medicines data for bar chart visualization.
@@ -72,7 +72,7 @@ def analytics_top_medicines(
     summary="Get refill alert statistics",
     description="Breakdown of refill alerts by status + top medicines with alerts.",
 )
-def analytics_refills(db: Session = Depends(get_db)):
+def analytics_refills(db: Annotated[Session, Depends(get_db)]):
     """
     Refill prediction stats for the analytics dashboard.
 
@@ -87,7 +87,7 @@ def analytics_refills(db: Session = Depends(get_db)):
     summary="Get webhook fulfillment statistics",
     description="Success rate, failure count, and recent webhook event history.",
 )
-def analytics_fulfillment(db: Session = Depends(get_db)):
+def analytics_fulfillment(db: Annotated[Session, Depends(get_db)]):
     """
     Webhook/fulfillment analytics for admin monitoring.
 
@@ -103,7 +103,7 @@ def analytics_fulfillment(db: Session = Depends(get_db)):
 )
 def analytics_orders_over_time(
     days: int = Query(default=30, ge=7, le=365, description="Days to look back"),
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Time-series order data for the analytics line chart.

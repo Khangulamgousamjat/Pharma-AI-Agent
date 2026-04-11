@@ -12,6 +12,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
+from typing import Annotated
 
 from app.database import SessionLocal, get_db
 from app.agents.voice_agent import get_voice_agent
@@ -77,7 +78,7 @@ class VoiceMessageResponse(BaseModel):
 )
 async def voice_message(
     request: VoiceMessageRequest,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Process voice transcript through pharmacy agent.

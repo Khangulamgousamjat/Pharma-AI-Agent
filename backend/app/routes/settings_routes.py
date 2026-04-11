@@ -17,7 +17,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
-from typing import Literal
+from typing import Literal, Annotated
 
 from app.database import SessionLocal, get_db
 from app.models.user import User
@@ -62,7 +62,7 @@ class PreferencesResponse(UserPreferences):
 )
 def get_preferences(
     user_id: int,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Retrieve persisted preferences for a user.
@@ -97,7 +97,7 @@ def get_preferences(
 def update_preferences(
     user_id: int,
     preferences: UserPreferences,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Persist user UI preferences to database.

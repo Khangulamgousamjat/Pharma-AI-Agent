@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Annotated
 
 from app.database import get_db
 from app.models.user import User
@@ -19,7 +19,7 @@ def check_admin_role(user: User = Depends(get_current_user_from_token)):
 
 @router.get("/pharmacists/pending", response_model=List[UserResponse])
 async def get_pending_pharmacists(
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
     admin: User = Depends(check_admin_role)
 ):
     """Fetch all pharmacists awaiting approval."""
@@ -28,7 +28,7 @@ async def get_pending_pharmacists(
 @router.post("/pharmacists/{user_id}/approve", status_code=200)
 async def approve_pharmacist(
     user_id: int,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
     admin: User = Depends(check_admin_role)
 ):
     """Approve a pending pharmacist account."""

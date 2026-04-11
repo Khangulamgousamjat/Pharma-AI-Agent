@@ -18,7 +18,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Annotated
 
 from app.database import SessionLocal, get_db
 from app.agents.symptom_agent import start_symptom_check, continue_symptom_check
@@ -99,7 +99,7 @@ class SymptomResponse(BaseModel):
 )
 def symptom_check(
     request: SymptomCheckRequest,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Initialize symptom triage session.
@@ -140,7 +140,7 @@ def symptom_check(
 )
 def symptom_continue(
     request: SymptomContinueRequest,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Process MCQ answer and advance symptom session.
@@ -177,7 +177,7 @@ def symptom_continue(
     "/session/{session_id}",
     summary="Get completed symptom session summary",
 )
-def get_symptom_session(session_id: str, db: Session = Depends(get_db)):
+def get_symptom_session(session_id: str, db: Annotated[Session, Depends(get_db)]):
     """
     Retrieve a completed symptom session by UUID.
 

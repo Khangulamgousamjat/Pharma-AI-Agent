@@ -10,6 +10,7 @@ Phase 2: Replace with real payment gateway (Stripe/Razorpay).
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from typing import Annotated
 
 from app.database import get_db
 from app.schemas.agent import PaymentRequest, PaymentResponse
@@ -19,7 +20,7 @@ router = APIRouter(prefix="/payment", tags=["Payment"])
 
 
 @router.post("/process", response_model=PaymentResponse)
-async def handle_payment(request: PaymentRequest, db: Session = Depends(get_db)):
+async def handle_payment(request: PaymentRequest, db: Annotated[Session, Depends(get_db)]):
     """
     Process payment for an order.
 

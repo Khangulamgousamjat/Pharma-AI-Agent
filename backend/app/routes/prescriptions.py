@@ -12,7 +12,7 @@ Endpoints:
 
 import os
 import logging
-from typing import List
+from typing import List, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from sqlalchemy.orm import Session
@@ -46,8 +46,8 @@ UPLOAD_DIR = getattr(settings, "upload_dir", "uploads")
 async def upload_prescription(
     user_id: int = Form(..., description="ID of the user uploading the prescription"),
     file: UploadFile = File(..., description="Prescription image (jpg, png, webp)"),
+    db: Annotated[Session, Depends(get_db)],
     authorization: str = Form(None),
-    db: Session = Depends(get_db),
 ):
     """
     Upload a prescription image for Vision Agent processing.
@@ -123,7 +123,7 @@ async def upload_prescription(
 )
 def get_user_prescriptions_route(
     user_id: int,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Retrieve all prescription records uploaded by a user.
@@ -139,7 +139,7 @@ def get_user_prescriptions_route(
     summary="Get all pending (unverified) prescriptions — pharmacist/admin only",
 )
 def get_pending_prescriptions_route(
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Get all prescriptions awaiting pharmacist verification (FIFO queue).

@@ -14,7 +14,7 @@ Endpoints:
 """
 
 import logging
-from typing import List
+from typing import List, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Header, status, Body
 from sqlalchemy.orm import Session
@@ -73,7 +73,7 @@ def _get_pharmacist_from_token(authorization: str) -> dict:
     description="Returns prescriptions awaiting verification, oldest first (FIFO).",
 )
 def get_pending_prescriptions_route(
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Pharmacist dashboard queue — returns all prescriptions not yet verified.
@@ -95,7 +95,7 @@ def verify_prescription_route(
     prescription_id: int,
     request: PharmacistVerifyRequest = Body(default=PharmacistVerifyRequest()),
     authorization: str = Header(None),
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Approve a prescription after pharmacist review.

@@ -18,7 +18,7 @@ import random
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Annotated
 
 from app.database import SessionLocal, get_db
 from app.services.webhook_service import (
@@ -129,7 +129,7 @@ async def simulate_warehouse(
 )
 async def retrigger_order(
     order_id: int,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Admin action: retry fulfillment webhook for a failed order.
@@ -161,7 +161,7 @@ async def retrigger_order(
     response_model=List[WebhookEventOut],
     summary="Get all webhook attempts for an order",
 )
-def get_webhook_events(order_id: int, db: Session = Depends(get_db)):
+def get_webhook_events(order_id: int, db: Annotated[Session, Depends(get_db)]):
     """
     Retrieve the complete webhook attempt history for a specific order.
 

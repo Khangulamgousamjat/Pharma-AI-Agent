@@ -11,7 +11,7 @@ Endpoints:
 """
 
 import logging
-from typing import List
+from typing import List, Annotated
 
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 )
 def get_user_alerts(
     user_id: int,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Get all active refill alerts for a user.
@@ -64,7 +64,7 @@ def get_user_alerts(
     summary="Get all refill alerts (admin/pharmacist view)",
 )
 def get_all_alerts(
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Get all refill alerts across all users — for admin monitoring.
@@ -95,7 +95,7 @@ def get_all_alerts(
 )
 async def run_prediction(
     request: RefillPredictionRequest,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Trigger the Refill Prediction Agent for a specific user.
