@@ -279,7 +279,7 @@ export default function LandingPage() {
             
             <div className="flex items-center gap-2 text-slate-400 text-sm font-semibold">
               <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
-                Made with ❤️ by <span className="text-indigo-400">Gous Khan</span>
+                Made by <span className="text-indigo-400">Gous Khan</span>
               </span>
             </div>
 
