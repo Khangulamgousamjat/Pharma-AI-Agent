@@ -84,21 +84,6 @@ export default function LandingPage() {
               </Link>
             </div>
 
-            {/* Mockup Preview Area */}
-            <div className="mt-20 relative px-4">
-              <div className="glass overflow-hidden rounded-2xl border border-white/10 shadow-2xl p-1 bg-white/5">
-                <div className="bg-[#0f0c29] rounded-xl overflow-hidden aspect-video flex items-center justify-center group cursor-pointer relative">
-                    {/* Placeholder content — in a real app this would be a high-res GUI screenshot */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent" />
-                    <div className="z-10 text-center">
-                         <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4 backdrop-blur-md group-hover:scale-110 transition-transform">
-                            <Bot size={40} className="text-indigo-400" />
-                         </div>
-                         <p className="text-indigo-200 font-semibold text-lg">Click to Preview Dashboard</p>
-                    </div>
-                </div>
-              </div>
-            </div>
           </div>
         </section>
 
