@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import GlassCard from "@/components/GlassCard";
 import PrescriptionApproval from "@/components/PrescriptionApproval";
 import { getUser, getToken } from "@/lib/auth";
-import { getPendingPrescriptions, type Prescription } from "@/lib/api";
+import { getPendingPrescriptions, BASE_URL, type Prescription } from "@/lib/api";
 
 export default function PharmacistPage() {
     const router = useRouter();
@@ -53,7 +53,7 @@ export default function PharmacistPage() {
         try {
             const t = getToken();
             if (!t) return;
-            const res = await fetch("http://localhost:8000/medicines/export", {
+            const res = await fetch(`${BASE_URL}/medicines/export`, {
                 headers: { Authorization: `Bearer ${t}` }
             });
             if (!res.ok) throw new Error("Export failed");

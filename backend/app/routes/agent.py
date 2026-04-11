@@ -10,7 +10,7 @@ validates prescription requirements, and creates orders.
 
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, Annotated
 import logging
 
 from app.database import get_db
@@ -26,8 +26,8 @@ router = APIRouter(prefix="/agent", tags=["AI Agent"])
 @router.post("/chat", response_model=AgentChatResponse)
 async def agent_chat(
     request: AgentChatRequest,
+    db: Annotated[Session, Depends(get_db)],
     authorization: Optional[str] = Header(None),
-    db: Session = Depends(get_db),
 ):
     """
     Send a message to the pharmacy AI agent.

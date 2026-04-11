@@ -10,6 +10,7 @@ These routes delegate all business logic to auth_service.py.
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from typing import Annotated
 
 from app.database import get_db
 from app.schemas.user import UserRegister, UserLogin, TokenResponse
@@ -19,7 +20,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
-async def register(data: UserRegister, db: Session = Depends(get_db)):
+async def register(data: UserRegister, db: Annotated[Session, Depends(get_db)]):
     """
     Register a new user account.
 
@@ -33,7 +34,7 @@ async def register(data: UserRegister, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(data: UserLogin, db: Session = Depends(get_db)):
+async def login(data: UserLogin, db: Annotated[Session, Depends(get_db)]):
     """
     Authenticate an existing user.
 

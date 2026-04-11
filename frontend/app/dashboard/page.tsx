@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import GlassCard from "@/components/GlassCard";
 import { getUser } from "@/lib/auth";
-import { getUserOrders, type Order } from "@/lib/api";
+import { getUserOrders, BASE_URL, type Order } from "@/lib/api";
 
 const STATUS_BADGE: Record<string, string> = {
     confirmed: "badge-success",
@@ -45,7 +45,7 @@ export default function DashboardPage() {
         try {
             const token = localStorage.getItem("pharmaagent_token");
             if (!token) return;
-            const res = await fetch(`http://localhost:8000/orders/export-user/${user.id}`, {
+            const res = await fetch(`${BASE_URL}/orders/export-user/${user.id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (!res.ok) throw new Error("Export failed");

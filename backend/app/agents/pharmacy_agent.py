@@ -53,7 +53,7 @@ class PharmacyAgent:
         logger.info("Initializing PharmacyAgent with Gemini 2.0 Flash...")
         
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
+            model="gemini-2.0-flash",
             google_api_key=settings.gemini_api_key,
             temperature=0.1,
             convert_system_message_to_human=True,

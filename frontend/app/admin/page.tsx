@@ -14,7 +14,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import GlassCard from "@/components/GlassCard";
 import { getUser } from "@/lib/auth";
-import { getMedicines, getAllOrders, getPendingPharmacists, approvePharmacist, type Medicine, type Order, type AuthResponse } from "@/lib/api";
+import { getMedicines, getAllOrders, getPendingPharmacists, approvePharmacist, BASE_URL, type Medicine, type Order, type AuthResponse } from "@/lib/api";
 
 export default function AdminPage() {
     const router = useRouter();
@@ -64,7 +64,7 @@ export default function AdminPage() {
         try {
             const token = localStorage.getItem("token");
             if (!token) return;
-            const res = await fetch("http://localhost:8000/orders/export", {
+            const res = await fetch(`${BASE_URL}/orders/export`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (!res.ok) throw new Error("Export failed");

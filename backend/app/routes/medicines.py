@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, Query, Header, HTTPException, status
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Annotated
 import os
 
 from app.database import get_db
@@ -29,7 +29,7 @@ router = APIRouter(prefix="/medicines", tags=["Medicines"])
 
 
 @router.get("", response_model=List[MedicineResponse])
-async def list_medicines(db: Session = Depends(get_db)):
+async def list_medicines(db: Annotated[Session, Depends(get_db)]):
     """
     Get all medicines in the inventory.
 
@@ -41,8 +41,8 @@ async def list_medicines(db: Session = Depends(get_db)):
 
 @router.get("/search", response_model=List[MedicineResponse])
 async def search(
+    db: Annotated[Session, Depends(get_db)],
     q: str = Query(..., min_length=1, description="Search term for medicine name"),
-    db: Session = Depends(get_db),
 ):
     """
     Search medicines by name (partial, case-insensitive match).
@@ -58,7 +58,7 @@ async def search(
 
 
 @router.get("/{medicine_id}", response_model=MedicineResponse)
-async def get_medicine(medicine_id: int, db: Session = Depends(get_db)):
+async def get_medicine(medicine_id: int, db: Annotated[Session, Depends(get_db)]):
     """
     Get a single medicine by its ID.
 
@@ -74,8 +74,8 @@ async def get_medicine(medicine_id: int, db: Session = Depends(get_db)):
 
 @router.get("/export")
 async def export_inventory(
+    db: Annotated[Session, Depends(get_db)],
     authorization: Optional[str] = Header(None),
-    db: Session = Depends(get_db),
 ):
     """
     Export full medicine inventory as Excel. Admin or Pharmacist only.

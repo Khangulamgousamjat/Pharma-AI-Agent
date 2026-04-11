@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Header
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Annotated
 import os
 
 from app.database import get_db
@@ -27,7 +27,7 @@ from app.utils.security import verify_token
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
 
-def _get_user_from_header(authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
+def _get_user_from_header(authorization: Optional[str] = Header(None), db: Annotated[Session, Depends(get_db)] = None):
     """
     Extract and verify JWT from Authorization header.
 
@@ -42,11 +42,10 @@ def _get_user_from_header(authorization: Optional[str] = Header(None), db: Sessi
     return payload
 
 
-@router.post("/create", response_model=OrderResponse, status_code=201)
 async def create_new_order(
     data: OrderCreate,
+    db: Annotated[Session, Depends(get_db)],
     authorization: Optional[str] = Header(None),
-    db: Session = Depends(get_db),
 ):
     """
     Create a new medicine order.
@@ -78,8 +77,8 @@ async def create_new_order(
 
 @router.get("/all", response_model=List[OrderResponse])
 async def list_all_orders(
+    db: Annotated[Session, Depends(get_db)],
     authorization: Optional[str] = Header(None),
-    db: Session = Depends(get_db),
 ):
     """
     Get all orders in the system. Admin only.
@@ -98,8 +97,8 @@ async def list_all_orders(
 
 @router.get("/export")
 async def export_all_orders(
+    db: Annotated[Session, Depends(get_db)],
     authorization: Optional[str] = Header(None),
-    db: Session = Depends(get_db),
 ):
     """
     Export all orders to an Excel file. Admin only.
@@ -123,8 +122,8 @@ async def export_all_orders(
 @router.get("/user/{user_id}", response_model=List[OrderResponse])
 async def list_user_orders(
     user_id: int,
+    db: Annotated[Session, Depends(get_db)],
     authorization: Optional[str] = Header(None),
-    db: Session = Depends(get_db),
 ):
     """
     Get all orders placed by a specific user.
@@ -152,8 +151,8 @@ async def list_user_orders(
 @router.get("/export-user/{user_id}")
 async def export_user_orders(
     user_id: int,
+    db: Annotated[Session, Depends(get_db)],
     authorization: Optional[str] = Header(None),
-    db: Session = Depends(get_db),
 ):
     """
     Export orders for a specific user to an Excel file.
