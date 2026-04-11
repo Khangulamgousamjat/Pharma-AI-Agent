@@ -223,25 +223,85 @@ export default function LandingPage() {
       </main>
 
       {/* --- Footer --- */}
-      <footer className="py-12 border-t border-white/5 bg-black/20">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="flex items-center gap-2 grayscale hover:grayscale-0 transition-all opacity-60 hover:opacity-100">
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-sm">
-              💉
+      <footer className="py-20 border-t border-white/5 bg-black/40 backdrop-blur-md relative overflow-hidden">
+        {/* Subtle background glow */}
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-indigo-600/5 blur-[120px] rounded-full pointer-events-none" />
+        
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
+            
+            {/* Branding Column */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-lg">
+                  💉
+                </div>
+                <span className="font-bold text-xl text-white">
+                  PharmaAgent AI
+                </span>
+              </div>
+              <p className="text-slate-500 text-sm leading-relaxed max-w-xs">
+                The next generation of pharmaceutical management, powered by advanced vision, voice, and chat AI agents.
+              </p>
+              <div className="flex items-center gap-4">
+                <Link href="https://github.com/Khangulamgousamjat" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-slate-400 hover:bg-white/10 hover:text-white transition-all border border-white/10">
+                  <Github size={18} />
+                </Link>
+                <Link href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-slate-400 hover:bg-white/10 hover:text-indigo-400 transition-all border border-white/10">
+                  <span className="font-bold text-xs">in</span>
+                </Link>
+              </div>
             </div>
-            <span className="font-bold text-lg text-slate-400">
-              PharmaAgent AI
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-8 text-slate-500 text-sm">
-            <Link href="#" className="hover:text-white transition-colors">Privacy Policy</Link>
-            <Link href="#" className="hover:text-white transition-colors">Terms of Service</Link>
-            <Link href="#" className="hover:text-white transition-colors">Contact Support</Link>
+
+            {/* Platform Column */}
+            <div>
+              <h4 className="text-white font-bold mb-6 text-sm uppercase tracking-widest">Platform</h4>
+              <ul className="space-y-4 text-sm text-slate-500">
+                <li><Link href="/chat" className="hover:text-indigo-400 transition-colors">AI Chatbot</Link></li>
+                <li><Link href="/vision" className="hover:text-indigo-400 transition-colors">Vision Agency</Link></li>
+                <li><Link href="/voice" className="hover:text-indigo-400 transition-colors">Voice Orders</Link></li>
+                <li><Link href="/dashboard" className="hover:text-indigo-400 transition-colors">Dashboard</Link></li>
+              </ul>
+            </div>
+
+            {/* Resources Column */}
+            <div>
+              <h4 className="text-white font-bold mb-6 text-sm uppercase tracking-widest">Resources</h4>
+              <ul className="space-y-4 text-sm text-slate-500">
+                <li><Link href="/symptom" className="hover:text-indigo-400 transition-colors">Symptom Triage</Link></li>
+                <li><Link href="/refill-alerts" className="hover:text-indigo-400 transition-colors">Refill Alerts</Link></li>
+                <li><Link href="#" className="hover:text-indigo-400 transition-colors">API Documentation</Link></li>
+                <li><Link href="#" className="hover:text-indigo-400 transition-colors">Community</Link></li>
+              </ul>
+            </div>
+
+            {/* Legal Column */}
+            <div>
+              <h4 className="text-white font-bold mb-6 text-sm uppercase tracking-widest">Organization</h4>
+              <ul className="space-y-4 text-sm text-slate-500">
+                <li><Link href="#" className="hover:text-indigo-400 transition-colors">About Gous Khan</Link></li>
+                <li><Link href="#" className="hover:text-indigo-400 transition-colors">Privacy Policy</Link></li>
+                <li><Link href="#" className="hover:text-indigo-400 transition-colors">Terms of Service</Link></li>
+                <li><Link href="#" className="hover:text-indigo-400 transition-colors">Contact Support</Link></li>
+              </ul>
+            </div>
           </div>
 
-          <div className="text-slate-600 text-sm">
-            © {new Date().getFullYear()} PharmaAgent AI. Developed with ❤️.
+          <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="text-slate-500 text-sm font-medium">
+              © {new Date().getFullYear()} <span className="text-white">PharmaAgent AI</span>. All rights reserved.
+            </div>
+            
+            <div className="flex items-center gap-2 text-slate-400 text-sm font-semibold">
+              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                Made with ❤️ by <span className="text-indigo-400">Gous Khan</span>
+              </span>
+            </div>
+
+            <div className="text-slate-500 text-xs flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              Built with precision in India
+            </div>
           </div>
         </div>
       </footer>
