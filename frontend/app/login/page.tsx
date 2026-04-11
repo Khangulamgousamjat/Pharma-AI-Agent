@@ -3,6 +3,7 @@
 import { useState, FormEvent, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { loginUser } from "@/lib/api";
 import { saveAuth } from "@/lib/auth";
 import GlassCard from "@/components/GlassCard";
@@ -58,6 +59,16 @@ export default function LoginPage() {
             </div>
 
             <div className="w-full max-w-md relative z-10 pt-10 pb-10">
+                <div className="mb-6">
+                    <Link 
+                        href="/" 
+                        className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-indigo-400 transition-colors bg-white/5 px-4 py-2 rounded-full border border-white/10"
+                    >
+                        <ArrowLeft size={16} />
+                        Back to Home
+                    </Link>
+                </div>
+
                 <div className="text-center mb-6">
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-3xl mb-4 shadow-lg">
                         💉
