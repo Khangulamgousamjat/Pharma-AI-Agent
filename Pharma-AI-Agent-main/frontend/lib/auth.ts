@@ -1,99 +1,117 @@
 /**
- * lib/auth.ts — JWT token and user session management
+ * lib/auth.ts — Firebase Auth and user session management
  *
- * Handles storing, retrieving, and clearing the authentication token
- * from localStorage. Also provides helpers to decode the token payload.
- *
- * @module auth
+ * Wraps Firebase Auth to provide simple get/set functions,
+ * and maintains backward compatibility with the existing React components.
  */
 
-/** User data stored in JWT payload and localStorage */
+import { auth } from "./firebase";
+import { onAuthStateChanged, User as FirebaseUser, signOut } from "firebase/auth";
+
+/** User data interface updated for Firebase (string IDs) */
 export interface User {
-  id: number;
+  id: string; // Firebase UID
   name: string;
   email: string;
-  role: "user" | "admin" | "pharmacist"; // Phase 2: added pharmacist role
+  role: "user" | "admin" | "pharmacist";
 }
 
-const TOKEN_KEY = "pharmaagent_token";
+let currentUser: User | null = null;
+let currentToken: string | null = null;
+
+// The backend will still manage the `role` and `name` in the Firestore `users` collection.
+// When the user logs in, we should ideally fetch their profile. For simplicity in this local module,
+// we parse it from the localStorage fallback or wait for components to fetch from `/auth/me`.
 const USER_KEY = "pharmaagent_user";
 
+if (typeof window !== "undefined") {
+    // Basic persistent role storage to avoid UI flashing before Firebase init
+    const raw = localStorage.getItem(USER_KEY);
+    if (raw) {
+        try { currentUser = JSON.parse(raw); } catch { }
+    }
+}
+
 /**
- * Save authentication token and user data to localStorage.
- * Called after successful login or registration.
- *
- * @param token - JWT access token string
- * @param user - User object to persist
+ * Save user data to localStorage (useful for roles).
  */
-export function saveAuth(token: string, user: User): void {
+export function saveUserLocal(user: User): void {
   if (typeof window !== "undefined") {
-    localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(USER_KEY, JSON.stringify(user));
+    currentUser = user;
   }
 }
 
 /**
- * Retrieve the stored JWT token.
- *
- * @returns JWT string or null if not logged in
+ * Retrieve the stored JWT token synchronously.
+ * Note: Firebase tokens expire after 1 hour, so we rely on the observer
+ * to keep it fresh, but for sync API calls we return the last known token.
  */
 export function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
+  return currentToken;
 }
 
 /**
  * Retrieve the stored user object.
- *
- * @returns User object or null if not logged in
  */
 export function getUser(): User | null {
-  if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem(USER_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as User;
-  } catch {
-    return null;
-  }
+  return currentUser;
 }
 
 /**
  * Check if the user is currently authenticated.
- *
- * @returns true if a token exists in localStorage
  */
 export function isAuthenticated(): boolean {
-  return !!getToken();
+  return !!currentUser || !!currentToken;
 }
 
 /**
  * Check if the current user has admin role.
- *
- * @returns true if logged-in user is an admin
  */
 export function isAdmin(): boolean {
-  const user = getUser();
-  return user?.role === "admin";
+  return currentUser?.role === "admin";
 }
 
 /**
- * Clear all auth data from localStorage (logout).
+ * Clear auth manually
  */
-export function clearAuth(): void {
+export async function clearAuth(): Promise<void> {
+  await signOut(auth);
+  currentUser = null;
+  currentToken = null;
   if (typeof window !== "undefined") {
-    localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
   }
 }
 
 /**
  * Build Authorization header object for API requests.
- *
- * @returns Header object with Bearer token, or empty object if not logged in
  */
 export function authHeader(): Record<string, string> {
-  const token = getToken();
-  if (!token) return {};
-  return { Authorization: `Bearer ${token}` };
+  if (!currentToken) return {};
+  return { Authorization: `Bearer ${currentToken}` };
+}
+
+// ---------------------------------------------------------------------------
+// Firebase Auth Observer Setup
+// ---------------------------------------------------------------------------
+if (typeof window !== "undefined") {
+    onAuthStateChanged(auth, async (user: FirebaseUser | null) => {
+        if (user) {
+            currentToken = await user.getIdToken();
+            if (!currentUser || currentUser.id !== user.uid) {
+                // Set basic info until profile is fetched
+                currentUser = {
+                    id: user.uid,
+                    name: user.displayName || user.email?.split('@')[0] || "User",
+                    email: user.email || "",
+                    role: currentUser?.role || "user"
+                };
+            }
+        } else {
+            currentToken = null;
+            currentUser = null;
+            localStorage.removeItem(USER_KEY);
+        }
+    });
 }

@@ -37,8 +37,8 @@ export default function Navbar() {
         }, 0);
     }, []);
 
-    const handleLogout = () => {
-        clearAuth();
+    const handleLogout = async () => {
+        await clearAuth();
         router.push("/login");
     };
 

@@ -19,8 +19,8 @@ export default function Sidebar() {
 
     const isActive = (path: string) => pathname === path;
 
-    const handleLogout = () => {
-        clearAuth();
+    const handleLogout = async () => {
+        await clearAuth();
         router.push("/login");
     };
 

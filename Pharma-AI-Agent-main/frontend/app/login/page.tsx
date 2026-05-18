@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, FormEvent, useEffect } from "react";
+import { useState, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { loginUser } from "@/lib/api";
-import { saveAuth } from "@/lib/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { fetchMyProfile } from "@/lib/api";
+import { saveUserLocal } from "@/lib/auth";
 import GlassCard from "@/components/GlassCard";
 
 export default function LoginPage() {
@@ -26,25 +28,43 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            const res = await loginUser(form);
-            saveAuth(res.access_token, {
-                id: res.user.id,
-                name: res.user.name,
-                email: res.user.email,
-                role: res.user.role as "user" | "admin" | "pharmacist",
+            // 1. Sign in with Firebase Auth
+            const userCredential = await signInWithEmailAndPassword(auth, form.email, form.password);
+            
+            // Wait for auth observer to set token internally or just fetch directly
+            const token = await userCredential.user.getIdToken();
+            
+            // 2. Fetch the user profile from our backend (which contains the Role)
+            const profile = await fetchMyProfile();
+            
+            // Verify they selected the correct role
+            if (profile.role !== selectedRole && selectedRole !== "user") {
+                 // Warning: In a real app we'd block them or redirect based purely on backend role.
+                 // We will just let the backend role dictate the truth.
+            }
+            
+            saveUserLocal({
+                id: profile.id,
+                name: profile.name,
+                email: profile.email,
+                role: profile.role as "user" | "admin" | "pharmacist",
             });
 
             // Route correctly based on role
-            if (res.user.role === "admin") {
+            if (profile.role === "admin") {
                 router.push("/admin");
-            } else if (res.user.role === "pharmacist") {
+            } else if (profile.role === "pharmacist") {
                 router.push("/pharmacist");
             } else {
                 router.push("/chat"); // User goes to chat by default
             }
-        } catch (err: unknown) {
-            let message = "Login failed. Please try again.";
-            if (err instanceof Error && err.message) message = err.message;
+        } catch (err: any) {
+            let message = "Login failed. Please check your credentials.";
+            if (err.code === "auth/invalid-credential") {
+                 message = "Invalid email or password.";
+            } else if (err.message) {
+                 message = err.message;
+            }
             setError(message);
         } finally {
             setLoading(false);

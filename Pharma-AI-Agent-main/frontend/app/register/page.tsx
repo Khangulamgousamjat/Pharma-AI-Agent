@@ -13,8 +13,11 @@ import { useState, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { registerUser } from "@/lib/api";
-import { saveAuth } from "@/lib/auth";
+import { saveUserLocal } from "@/lib/auth";
 import GlassCard from "@/components/GlassCard";
+
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -33,23 +36,35 @@ export default function RegisterPage() {
         }
         setLoading(true);
         try {
-            const res = await registerUser(form);
+            // 1. Create User in Firebase Auth
+            const userCredential = await createUserWithEmailAndPassword(auth, form.email, form.password);
+            
+            // 2. Register profile in our backend
+            const profile = await registerUser(form);
 
             if (form.role === "pharmacist") {
                 setSuccessMessage("Registration successful! Your account is pending admin approval. You will be able to log in once approved.");
                 // Reset form
                 setForm({ name: "", email: "", password: "", role: "pharmacist" });
+                // We should technically sign them out so they don't wander around unapproved
+                await auth.signOut();
             } else {
-                saveAuth(res.access_token, {
-                    id: res.user.id,
-                    name: res.user.name,
-                    email: res.user.email,
-                    role: res.user.role as "user" | "admin" | "pharmacist",
+                saveUserLocal({
+                    id: profile.id,
+                    name: profile.name,
+                    email: profile.email,
+                    role: profile.role as "user" | "admin" | "pharmacist",
                 });
                 router.push("/chat");
             }
-        } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : "Registration failed.");
+        } catch (err: any) {
+            let message = "Registration failed.";
+            if (err.code === "auth/email-already-in-use") {
+                message = "Email is already registered.";
+            } else if (err.message) {
+                message = err.message;
+            }
+            setError(message);
         } finally {
             setLoading(false);
         }

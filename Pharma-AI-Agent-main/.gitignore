@@ -31,3 +31,5 @@ Thumbs.db
 
 # uploads
 backend/uploads/
+
+firebase_key.json
