@@ -20,7 +20,7 @@ import { getUserPrescriptions, type Prescription, type PrescriptionUploadRespons
 
 export default function VisionPage() {
     const router = useRouter();
-    const [userId, setUserId] = useState<number | null>(null);
+    const [userId, setUserId] = useState<string | null>(null);
     const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -31,7 +31,7 @@ export default function VisionPage() {
         loadPrescriptions(user.id);
     }, []);
 
-    const loadPrescriptions = async (uid: number) => {
+    const loadPrescriptions = async (uid: string) => {
         try {
             const data = await getUserPrescriptions(uid);
             setPrescriptions(data);

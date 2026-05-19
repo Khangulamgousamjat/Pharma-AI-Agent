@@ -34,7 +34,7 @@ const LANGUAGE_OPTIONS = [
 
 export default function SymptomPage() {
     const router = useRouter();
-    const [user, setUser] = useState<{ id: number } | null>(null);
+    const [user, setUser] = useState<{ id: string } | null>(null);
     const [language, setLanguage] = useState("en");
 
     useEffect(() => {

@@ -49,7 +49,7 @@ export default function AdminPage() {
             .finally(() => setLoading(false));
     };
 
-    const handleApprove = async (userId: number) => {
+    const handleApprove = async (userId: string) => {
         try {
             await approvePharmacist(userId);
             refreshData(); // Refresh list after approval

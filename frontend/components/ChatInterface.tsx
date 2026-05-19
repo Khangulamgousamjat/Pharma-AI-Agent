@@ -26,12 +26,12 @@ interface Message {
     role: "user" | "agent";
     content: string;
     action?: string | null;
-    order_id?: number | null;
+    order_id?: string | null;
     timestamp: Date;
 }
 
 interface ChatInterfaceProps {
-    userId: number;
+    userId: string;
 }
 
 /** Extract a safe, readable error message from any thrown value */
@@ -68,7 +68,7 @@ export default function ChatInterface({ userId }: ChatInterfaceProps) {
     const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
-    const [payingOrderId, setPayingOrderId] = useState<number | null>(null);
+    const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
     const [isListening, setIsListening] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -165,7 +165,7 @@ export default function ChatInterface({ userId }: ChatInterfaceProps) {
     };
 
     /** Trigger dummy payment for an order */
-    const handlePayment = async (orderId: number, amount: number) => {
+    const handlePayment = async (orderId: string, amount: number) => {
         setPayingOrderId(orderId);
         try {
             const res = await processPayment(orderId, amount);

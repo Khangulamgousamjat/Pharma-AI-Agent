@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getUser, clearAuth, type User } from "@/lib/auth";
 import { LogOut } from "lucide-react";
+import GlassPanel from "@/components/GlassPanel";
 
 export default function Sidebar() {
     const pathname = usePathname();
@@ -55,30 +56,11 @@ export default function Sidebar() {
     const links = getLinks();
 
     return (
-        <aside
+        <GlassPanel
+            variant="sidebar"
             className="w-64 hidden md:flex flex-col shrink-0 relative"
-            style={{
-                /* Real glass sidebar */
-                background: "var(--glass-light-bg)",
-                backdropFilter: "var(--glass-light-blur)",
-                WebkitBackdropFilter: "var(--glass-light-blur)",
-                borderRight: "1px solid rgba(167, 139, 250, 0.18)",
-                boxShadow: "inset -1px 0 0 rgba(255,255,255,0.5)",
-            }}
+            style={{ height: "100%" }}
         >
-            {/* Inner right-edge highlight (glass refracting light) */}
-            <div
-                aria-hidden
-                style={{
-                    position: "absolute",
-                    top: 0, right: 0, bottom: 0,
-                    width: 1,
-                    background: "linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(167,139,250,0.3) 50%, transparent 100%)",
-                    pointerEvents: "none",
-                    zIndex: 1,
-                }}
-            />
-
             {/* Logo */}
             <div className="p-6 border-b border-[rgba(167,139,250,0.12)]">
                 <Link
@@ -179,6 +161,6 @@ export default function Sidebar() {
                     </button>
                 </div>
             )}
-        </aside>
+        </GlassPanel>
     );
 }

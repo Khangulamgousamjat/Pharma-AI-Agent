@@ -22,7 +22,7 @@ import GlassCard from "@/components/GlassCard";
 interface PrescriptionApprovalProps {
     prescription: Prescription;
     token: string;
-    onVerified?: (id: number) => void;
+    onVerified?: (id: string) => void;
 }
 
 export default function PrescriptionApproval({

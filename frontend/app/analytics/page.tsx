@@ -39,7 +39,7 @@ export default function AnalyticsPage() {
     const [webhookStats, setWebhookStats] = useState<WebhookStats | null>(null);
     const [recentEvents, setRecentEvents] = useState<WebhookEvent[]>([]);
     const [loading, setLoading] = useState(true);
-    const [retriggering, setRetriggering] = useState<number | null>(null);
+    const [retriggering, setRetriggering] = useState<string | null>(null);
 
     useEffect(() => {
         const user = getUser();
@@ -76,7 +76,7 @@ export default function AnalyticsPage() {
         }
     };
 
-    const handleRetrigger = async (orderId: number) => {
+    const handleRetrigger = async (orderId: string) => {
         setRetriggering(orderId);
         try {
             await retriggerWebhook(orderId);

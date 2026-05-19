@@ -21,7 +21,7 @@ import { uploadPrescription, type PrescriptionUploadResponse } from "@/lib/api";
 import GlassCard from "@/components/GlassCard";
 
 interface VisionUploaderProps {
-    userId: number;
+    userId: string;
     onUploadSuccess?: (result: PrescriptionUploadResponse) => void;
 }
 

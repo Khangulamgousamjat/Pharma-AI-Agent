@@ -19,7 +19,7 @@ import { updatePreferences, type UserPreferences } from "@/lib/api";
 
 export default function SettingsPage() {
     const router = useRouter();
-    const [userId, setUserId] = useState<number | null>(null);
+    const [userId, setUserId] = useState<string | null>(null);
     const [theme, setTheme] = useState<"dark" | "light">("dark");
     const [language, setLanguage] = useState("en");
     const [saving, setSaving] = useState(false);

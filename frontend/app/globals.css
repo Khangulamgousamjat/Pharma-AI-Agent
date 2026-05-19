@@ -454,3 +454,80 @@
   --bg-gradient: var(--bg-dark-base);
   --text-color: var(--text-primary-dark);
 }
+
+/* Input fields glass style */
+input, textarea, select {
+  background: rgba(255,255,255,0.12) !important;
+  border: 1px solid rgba(255,255,255,0.35) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border-radius: 12px !important;
+  transition: all 0.3s ease !important;
+}
+input:focus, textarea:focus, select:focus {
+  border-color: rgba(139,92,246,0.65) !important;
+  box-shadow: 0 0 0 3px rgba(139,92,246,0.15) !important;
+  outline: none !important;
+}
+.dark input, .dark textarea, .dark select,
+[data-theme="dark"] input, [data-theme="dark"] textarea, [data-theme="dark"] select {
+  background: rgba(255,255,255,0.05) !important;
+  border-color: rgba(255,255,255,0.08) !important;
+  color: #f0ebff !important;
+}
+
+/* Primary buttons styling */
+.btn-primary {
+  background: linear-gradient(135deg, #7c3aed, #9333ea) !important;
+  border: 1px solid rgba(255,255,255,0.22) !important;
+  box-shadow: 0 4px 15px rgba(124,58,237,0.38), inset 0 1px 0 rgba(255,255,255,0.22) !important;
+  color: #ffffff !important;
+  border-radius: 12px !important;
+  padding: 10px 20px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
+}
+.btn-primary:hover {
+  box-shadow: 0 6px 24px rgba(124,58,237,0.52), inset 0 1px 0 rgba(255,255,255,0.22) !important;
+  transform: translateY(-1px) !important;
+}
+.btn-primary:active {
+  transform: translateY(0px) !important;
+}
+
+/* PERFORMANCE & CLEANUP */
+/* GPU acceleration for animated elements only */
+.orb, .mol-wrap, .mol-inner {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Remove will-change once animation completes for static elements */
+.glass-panel {
+  will-change: auto;
+  transform: translateZ(0);
+}
+
+/* Prevent layout shift */
+body {
+  background-color: #f5f3ff;
+}
+.dark body, [data-theme="dark"] body {
+  background-color: #07070f;
+}
+
+/* Kill ALL default browser transitions that cause jank */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Reduce motion — accessibility + performance */
+@media (prefers-reduced-motion: reduce) {
+  .orb, .mol-wrap, .mol-inner {
+    animation: none !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
+}

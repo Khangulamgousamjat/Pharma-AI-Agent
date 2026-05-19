@@ -614,7 +614,7 @@ export async function uploadPrescription(
  * @param userId - User ID
  * @returns Array of prescription records
  */
-export async function getUserPrescriptions(userId: number): Promise<Prescription[]> {
+export async function getUserPrescriptions(userId: string): Promise<Prescription[]> {
     return apiFetch<Prescription[]>(`/prescriptions/user/${userId}`, {
         headers: authHeader(),
     });
@@ -640,7 +640,7 @@ export async function getPendingPrescriptions(): Promise<Prescription[]> {
  * @returns Updated prescription record
  */
 export async function verifyPrescription(
-    prescriptionId: number,
+    prescriptionId: string,
     token: string
 ): Promise<Prescription> {
     return apiFetch<Prescription>(`/pharmacist/prescriptions/${prescriptionId}/verify`, {
@@ -655,9 +655,9 @@ export async function verifyPrescription(
 // ---------------------------------------------------------------------------
 
 export interface RefillAlert {
-    id: number;
-    user_id: number;
-    medicine_id: number;
+    id: string;
+    user_id: string;
+    medicine_id: string;
     predicted_refill_date: string | null;
     days_supply: number;
     status: string;
@@ -667,7 +667,7 @@ export interface RefillAlert {
 }
 
 export interface RefillPredictionResponse {
-    user_id: number;
+    user_id: string;
     alerts_created: number;
     alerts_updated: number;
     message: string;
@@ -679,7 +679,7 @@ export interface RefillPredictionResponse {
  * @param userId - User ID
  * @returns Array of refill alerts (soonest first)
  */
-export async function getRefillAlerts(userId: number): Promise<RefillAlert[]> {
+export async function getRefillAlerts(userId: string): Promise<RefillAlert[]> {
     return apiFetch<RefillAlert[]>(`/refill-alerts/user/${userId}`, {
         headers: authHeader(),
     });
@@ -692,7 +692,7 @@ export async function getRefillAlerts(userId: number): Promise<RefillAlert[]> {
  * @param userId - User to run prediction for
  * @returns Summary of alerts created/updated
  */
-export async function runRefillPrediction(userId: number): Promise<RefillPredictionResponse> {
+export async function runRefillPrediction(userId: string): Promise<RefillPredictionResponse> {
     return apiFetch<RefillPredictionResponse>("/refill-alerts/run-prediction", {
         method: "POST",
         headers: authHeader(),

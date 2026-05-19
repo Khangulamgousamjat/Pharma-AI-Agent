@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { getUser, clearAuth, type User } from "@/lib/auth";
 import { useTheme } from "next-themes";
 import { Sun, Moon, LogOut } from "lucide-react";
+import GlassPanel from "@/components/GlassPanel";
 
 const PAGE_TITLES: Record<string, string> = {
     "/":             "Home",
@@ -45,31 +46,11 @@ export default function Navbar() {
         pathname.slice(1).charAt(0).toUpperCase() + pathname.slice(2);
 
     return (
-        <header
+        <GlassPanel
+            variant="navbar"
             className="sticky top-0 z-50 flex items-center justify-between px-4 h-16 md:px-6"
-            style={{
-                /* Glass navbar */
-                background: "var(--glass-light-bg)",
-                backdropFilter: "var(--glass-light-blur)",
-                WebkitBackdropFilter: "var(--glass-light-blur)",
-                borderBottom: "1px solid rgba(167,139,250,0.18)",
-                boxShadow:
-                    "inset 0 1px 0 rgba(255,255,255,0.55), 0 4px 24px rgba(124,58,237,0.07)",
-            }}
+            style={{ position: "sticky", top: 0, zIndex: 50, width: "100%" }}
         >
-            {/* Bottom-edge inner highlight (like glass catching ceiling light) */}
-            <div
-                aria-hidden
-                style={{
-                    position: "absolute",
-                    bottom: 0, left: 0, right: 0,
-                    height: 1,
-                    background:
-                        "linear-gradient(90deg, transparent 0%, rgba(167,139,250,0.3) 40%, rgba(167,139,250,0.3) 60%, transparent 100%)",
-                    pointerEvents: "none",
-                }}
-            />
-
             {/* Left — page title / mobile logo */}
             <div className="flex items-center gap-3">
                 <div className="md:hidden flex items-center">
@@ -149,6 +130,6 @@ export default function Navbar() {
                     </div>
                 )}
             </div>
-        </header>
+        </GlassPanel>
     );
 }

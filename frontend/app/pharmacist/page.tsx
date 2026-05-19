@@ -19,7 +19,7 @@ import { getPendingPrescriptions, BASE_URL, type Prescription } from "@/lib/api"
 export default function PharmacistPage() {
     const router = useRouter();
     const [pendingRx, setPendingRx] = useState<Prescription[]>([]);
-    const [verifiedIds, setVerifiedIds] = useState<Set<number>>(new Set());
+    const [verifiedIds, setVerifiedIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
     const [role, setRole] = useState<string>("user");
     const [token, setToken] = useState<string>("");
@@ -45,7 +45,7 @@ export default function PharmacistPage() {
         finally { setLoading(false); }
     };
 
-    const handleVerified = (id: number) => {
+    const handleVerified = (id: string) => {
         setVerifiedIds((prev) => new Set([...prev, id]));
     };
 

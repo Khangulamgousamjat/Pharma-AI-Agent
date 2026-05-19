@@ -30,7 +30,7 @@ import {
 } from "@/lib/api";
 
 interface SymptomFlowProps {
-    userId: number;
+    userId: string;
     language?: string;
 }
 
