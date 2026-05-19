@@ -31,3 +31,10 @@ Thumbs.db
 
 # uploads
 backend/uploads/
+ 
+# ignore workspace subfolder 
+Pharma-AI-Agent-main/
+ 
+# Firebase secrets 
+firebase_key.json 
+*serviceAccountKey*.json 

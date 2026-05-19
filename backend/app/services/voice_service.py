@@ -20,9 +20,7 @@ Privacy note (per requirements):
 """
 
 import logging
-from typing import Optional
-
-from sqlalchemy.orm import Session
+from typing import Optional, Any
 
 from app.config import settings
 from app.constants.languages import get_language_instruction, DEFAULT_LANGUAGE, is_supported_language
@@ -32,9 +30,9 @@ logger = logging.getLogger(__name__)
 
 async def process_voice_message(
     transcript: str,
-    user_id: int,
+    user_id: str,
     language: str,
-    db: Session,
+    db: Any,
 ) -> dict:
     """
     Process a voice transcript through the pharmacy agent.

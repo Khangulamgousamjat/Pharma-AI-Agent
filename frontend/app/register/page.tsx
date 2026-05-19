@@ -1,24 +1,20 @@
 "use client";
 
-/**
- * app/register/page.tsx — Registration page.
- *
- * Features:
- * - Name, email, password form
- * - Calls POST /auth/register
- * - Auto-login: saves JWT + user, redirects to /dashboard
- */
-
 import { useState, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { registerUser } from "@/lib/api";
-import { saveAuth } from "@/lib/auth";
+import { registerUser, fetchMyProfile } from "@/lib/api";
+import { saveUserLocal } from "@/lib/auth";
 import GlassCard from "@/components/GlassCard";
+import { ChevronDown, Chrome } from "lucide-react";
+
+import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 export default function RegisterPage() {
     const router = useRouter();
     const [form, setForm] = useState({ name: "", email: "", password: "", role: "user" });
+    const [dropdownOpen, setDropdownOpen] = useState(false);
     const [error, setError] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
     const [loading, setLoading] = useState(false);
@@ -33,23 +29,85 @@ export default function RegisterPage() {
         }
         setLoading(true);
         try {
-            const res = await registerUser(form);
+            // 1. Create User in Firebase Auth
+            const userCredential = await createUserWithEmailAndPassword(auth, form.email, form.password);
+            
+            // Wait for token
+            await userCredential.user.getIdToken();
+
+            // 2. Register profile in our backend
+            const profile = await registerUser(form);
 
             if (form.role === "pharmacist") {
                 setSuccessMessage("Registration successful! Your account is pending admin approval. You will be able to log in once approved.");
-                // Reset form
                 setForm({ name: "", email: "", password: "", role: "pharmacist" });
+                await auth.signOut();
             } else {
-                saveAuth(res.access_token, {
-                    id: res.user.id,
-                    name: res.user.name,
-                    email: res.user.email,
-                    role: res.user.role as "user" | "admin" | "pharmacist",
+                saveUserLocal({
+                    id: profile.id,
+                    name: profile.name,
+                    email: profile.email,
+                    role: profile.role as "user" | "admin" | "pharmacist",
                 });
                 router.push("/chat");
             }
-        } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : "Registration failed.");
+        } catch (err: any) {
+            let message = "Registration failed.";
+            if (err.code === "auth/email-already-in-use") {
+                message = "Email is already registered.";
+            } else if (err.message) {
+                message = err.message;
+            }
+            setError(message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGoogleSignIn = async () => {
+        setError("");
+        setLoading(true);
+        try {
+            const provider = new GoogleAuthProvider();
+            const userCredential = await signInWithPopup(auth, provider);
+            
+            // Force token update
+            const token = await userCredential.user.getIdToken(true);
+            
+            let profile;
+            try {
+                // Check if user profile already exists
+                profile = await fetchMyProfile(token);
+            } catch (profileErr) {
+                // If profile doesn't exist, auto-register on the backend with "user" role
+                profile = await registerUser({
+                    name: userCredential.user.displayName || "Google User",
+                    email: userCredential.user.email || "",
+                    password: "google-auth-placeholder-password",
+                    role: "user"
+                });
+            }
+
+            saveUserLocal({
+                id: profile.id,
+                name: profile.name,
+                email: profile.email,
+                role: profile.role as "user" | "admin" | "pharmacist",
+            });
+
+            if (profile.role === "admin") {
+                router.push("/admin");
+            } else if (profile.role === "pharmacist") {
+                router.push("/pharmacist");
+            } else {
+                router.push("/chat");
+            }
+        } catch (err: any) {
+            let message = "Google Sign-In failed.";
+            if (err.message) {
+                message = err.message;
+            }
+            setError(message);
         } finally {
             setLoading(false);
         }
@@ -62,7 +120,7 @@ export default function RegisterPage() {
                 <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl" />
             </div>
 
-            <div className="w-full max-w-md relative z-10">
+            <div className="w-full max-w-md relative z-10 pt-10 pb-10">
                 <div className="text-center mb-8">
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-3xl mb-4 shadow-lg">
                         💉
@@ -72,26 +130,48 @@ export default function RegisterPage() {
                 </div>
 
                 <GlassCard>
-                    <h2 className="text-xl font-bold text-[var(--text-color)] mb-6">Create Account</h2>
+                    <h2 className="text-xl font-bold text-[var(--text-color)] mb-4 text-center">Create Account</h2>
+
+                    {/* Role Dropdown Selector */}
+                    <div className="relative mb-6">
+                        <label className="block text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">
+                            Select Role
+                        </label>
+                        <button
+                            type="button"
+                            onClick={() => setDropdownOpen(!dropdownOpen)}
+                            className="w-full input-glass flex items-center justify-between py-2.5 px-4 rounded-lg capitalize border border-white/10 hover:border-indigo-500/50 transition-all text-left bg-slate-900/40 text-slate-200"
+                        >
+                            <span>{form.role}</span>
+                            <ChevronDown size={18} className={`transform transition-transform duration-300 ${dropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {dropdownOpen && (
+                            <>
+                                <div className="fixed inset-0 z-20" onClick={() => setDropdownOpen(false)} />
+                                <div className="absolute left-0 right-0 mt-2 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-30 transition-all animate-in fade-in slide-in-from-top-2 duration-300">
+                                    {["user", "pharmacist"].map((role) => (
+                                        <button
+                                            key={role}
+                                            type="button"
+                                            onClick={() => {
+                                                setForm({ ...form, role });
+                                                setDropdownOpen(false);
+                                            }}
+                                            className={`w-full text-left px-4 py-3 text-sm transition-colors capitalize ${form.role === role 
+                                                ? "bg-indigo-600 text-white font-medium" 
+                                                : "text-slate-300 hover:bg-white/5 hover:text-white"
+                                            }`}
+                                        >
+                                            {role}
+                                        </button>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
 
                     <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
-                        {/* Role Selector */}
-                        <div className="flex gap-2 p-1 bg-white dark:bg-slate-800/50 rounded-lg mb-4 border border-white/5">
-                            {["user", "pharmacist"].map((role) => (
-                                <button
-                                    key={role}
-                                    type="button"
-                                    onClick={() => setForm({ ...form, role })}
-                                    className={`flex-1 py-1.5 px-3 rounded-md text-xs font-medium transition-all capitalize ${form.role === role
-                                        ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/20"
-                                        : "text-slate-600 dark:text-slate-400 hover:text-indigo-400"
-                                        }`}
-                                >
-                                    {role}
-                                </button>
-                            ))}
-                        </div>
-
                         <div>
                             <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1.5" htmlFor="name">Full Name</label>
                             <input
@@ -152,6 +232,27 @@ export default function RegisterPage() {
                             ) : "Create Account"}
                         </button>
                     </form>
+
+                    {/* Google Login Separator */}
+                    <div className="relative my-6 flex items-center justify-center">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-white/10"></div>
+                        </div>
+                        <span className="relative bg-transparent px-3 text-xs text-slate-500 uppercase tracking-wider font-semibold z-10">
+                            Or continue with
+                        </span>
+                    </div>
+
+                    {/* Google Sign In Button */}
+                    <button
+                        type="button"
+                        onClick={handleGoogleSignIn}
+                        disabled={loading}
+                        className="w-full flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 border border-white/15 hover:border-white/20 text-slate-200 py-3 rounded-xl transition-all duration-300 font-semibold shadow-md active:scale-[0.98]"
+                    >
+                        <Chrome size={18} className="text-indigo-400" />
+                        Sign in with Google
+                    </button>
 
                     <p className="text-center text-slate-600 dark:text-slate-400 text-sm mt-6">
                         Already have an account?{" "}

@@ -1,38 +1,20 @@
 """
-services/refill_service.py — Refill prediction business logic.
-
-Phase 2 addition: Analyzes a user's order history and predicts
-when they will run out of medicines, generating proactive alerts.
-
-Prediction Algorithm:
-  1. For each medicine the user has ordered in the last 90 days:
-     a. Find their most recent order
-     b. Assume daily consumption = quantity / standard_days_supply
-        (e.g., 30 tablets → 1/day → 30 day supply)
-     c. predicted_refill_date = last_order_date + days_supply
-  2. If predicted_refill_date is within 7 days → create/update alert
-  3. Status: 'pending' (default) → 'notified' (viewed) → 'ordered' (reordered)
-
-Standard days supply assumptions (Phase 2):
-  - Tablets / capsules: quantity ordered = days supply (1 per day assumed)
-  - Bottles (syrups): 14 days per bottle
+services/refill_service.py — Refill prediction business logic using Firestore.
 """
 
 import logging
 from datetime import date, datetime, timedelta
-from typing import List, Dict
+from typing import List, Dict, Any
 
-from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
 
 from app.models.order import Order
 from app.models.refill_alert import RefillAlert
+from app.models.medicine import Medicine
 from app.schemas.refill import RefillPredictionResponse
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Prediction constants
-# ---------------------------------------------------------------------------
 # Days before predicted run-out date to generate a refill alert
 ALERT_THRESHOLD_DAYS = 7
 
@@ -47,34 +29,37 @@ DAYS_SUPPLY_PER_UNIT = {
 DEFAULT_DAYS_PER_UNIT = 1
 
 
-def predict_refill_needs(db: Session, user_id: int) -> RefillPredictionResponse:
+def _doc_to_alert(doc) -> RefillAlert:
+    data = doc.to_dict()
+    data['id'] = doc.id
+    if 'created_at' in data and not isinstance(data['created_at'], str) and hasattr(data['created_at'], 'to_datetime'):
+        data['created_at'] = data['created_at'].to_datetime()
+    return RefillAlert(**data)
+
+
+def _doc_to_order(doc) -> Order:
+    data = doc.to_dict()
+    data['id'] = doc.id
+    if 'created_at' in data and not isinstance(data['created_at'], str) and hasattr(data['created_at'], 'to_datetime'):
+        data['created_at'] = data['created_at'].to_datetime()
+    return Order(**data)
+
+
+def predict_refill_needs(db: Any, user_id: str) -> RefillPredictionResponse:
     """
-    Predict refill dates from a user's recent order history.
-
-    Analysis window: last 90 days of orders.
-    Alert creation: only if predicted run-out is within ALERT_THRESHOLD_DAYS.
-
-    Args:
-        db: Database session
-        user_id: User whose orders to analyze
-
-    Returns:
-        RefillPredictionResponse: Summary of alerts created/updated
+    Predict refill dates from a user's recent order history in Firestore.
     """
     logger.info(f"[RefillService] Running refill prediction for user={user_id}")
 
-    # Fetch orders from last 90 days
+    # Fetch orders
     ninety_days_ago = datetime.utcnow() - timedelta(days=90)
-    recent_orders: List[Order] = (
-        db.query(Order)
-        .filter(
-            Order.user_id == user_id,
-            Order.created_at >= ninety_days_ago,
-            Order.status.in_(["confirmed", "paid"]),
-        )
-        .order_by(Order.created_at.desc())
-        .all()
-    )
+    docs = db.collection("orders").where("user_id", "==", user_id).stream()
+    
+    recent_orders: List[Order] = []
+    for doc in docs:
+        order = _doc_to_order(doc)
+        if order.created_at >= ninety_days_ago and order.status in ["confirmed", "paid"]:
+            recent_orders.append(order)
 
     if not recent_orders:
         logger.info(f"[RefillService] No recent orders found for user={user_id}")
@@ -85,8 +70,11 @@ def predict_refill_needs(db: Session, user_id: int) -> RefillPredictionResponse:
             message="No recent orders found to analyze.",
         )
 
+    # Sort recent orders: newest first
+    recent_orders.sort(key=lambda o: o.created_at, reverse=True)
+
     # Group orders by medicine_id — keep only the most recent per medicine
-    latest_by_medicine: Dict[int, Order] = {}
+    latest_by_medicine: Dict[str, Order] = {}
     for order in recent_orders:
         if order.medicine_id not in latest_by_medicine:
             latest_by_medicine[order.medicine_id] = order
@@ -96,12 +84,14 @@ def predict_refill_needs(db: Session, user_id: int) -> RefillPredictionResponse:
     today = date.today()
 
     for medicine_id, order in latest_by_medicine.items():
-        # -----------------------------------------------------------------------
-        # Calculate predicted refill date
-        # -----------------------------------------------------------------------
-        medicine = order.medicine
-        if not medicine:
+        # Fetch medicine details
+        med_doc = db.collection("medicines").document(medicine_id).get()
+        if not med_doc.exists:
             continue
+        
+        med_data = med_doc.to_dict()
+        med_data['id'] = med_doc.id
+        medicine = Medicine(**med_data)
 
         # Determine days supply based on medicine unit type
         unit_lower = (medicine.unit or "tablets").lower()
@@ -111,6 +101,9 @@ def predict_refill_needs(db: Session, user_id: int) -> RefillPredictionResponse:
         # Predicted refill date = order date + days supply
         if order.created_at:
             order_date = order.created_at.date() if hasattr(order.created_at, 'date') else order.created_at
+            # Handle if order_date is a datetime
+            if isinstance(order_date, datetime):
+                order_date = order_date.date()
             predicted_refill_date = order_date + timedelta(days=days_supply)
         else:
             predicted_refill_date = today + timedelta(days=7)
@@ -129,37 +122,41 @@ def predict_refill_needs(db: Session, user_id: int) -> RefillPredictionResponse:
             )
             continue
 
-        # -----------------------------------------------------------------------
-        # Create or update the refill alert
-        # -----------------------------------------------------------------------
-        existing_alert = (
-            db.query(RefillAlert)
-            .filter(
-                RefillAlert.user_id == user_id,
-                RefillAlert.medicine_id == medicine_id,
-                RefillAlert.status.in_(["pending", "notified"]),
-            )
-            .first()
-        )
+        # Check for existing pending or notified alerts
+        alerts_query = db.collection("refill_alerts")\
+                        .where("user_id", "==", user_id)\
+                        .where("medicine_id", "==", medicine_id)\
+                        .stream()
+                        
+        existing_alert_doc = None
+        for alert_doc in alerts_query:
+            a_data = alert_doc.to_dict()
+            if a_data.get("status") in ["pending", "notified"]:
+                existing_alert_doc = alert_doc
+                break
 
-        if existing_alert:
+        pred_date_str = predicted_refill_date.isoformat()
+
+        if existing_alert_doc:
             # Update existing alert with fresh prediction
-            existing_alert.predicted_refill_date = predicted_refill_date
-            existing_alert.days_supply = days_supply
-            db.commit()
+            db.collection("refill_alerts").document(existing_alert_doc.id).update({
+                "predicted_refill_date": pred_date_str,
+                "days_supply": days_supply
+            })
             alerts_updated += 1
-            logger.info(f"[RefillService] Updated alert id={existing_alert.id}")
+            logger.info(f"[RefillService] Updated alert id={existing_alert_doc.id}")
         else:
             # Create new alert
+            new_ref = db.collection("refill_alerts").document()
             alert = RefillAlert(
+                id=new_ref.id,
                 user_id=user_id,
                 medicine_id=medicine_id,
-                predicted_refill_date=predicted_refill_date,
+                predicted_refill_date=pred_date_str,
                 days_supply=days_supply,
                 status="pending",
             )
-            db.add(alert)
-            db.commit()
+            new_ref.set(alert.to_dict())
             alerts_created += 1
             logger.info(f"[RefillService] Created new refill alert for medicine={medicine.name}")
 
@@ -174,62 +171,40 @@ def predict_refill_needs(db: Session, user_id: int) -> RefillPredictionResponse:
     )
 
 
-def get_user_refill_alerts(db: Session, user_id: int) -> List[RefillAlert]:
+def get_user_refill_alerts(db: Any, user_id: str) -> List[RefillAlert]:
     """
-    Get all active refill alerts for a user.
-
-    Args:
-        db: Database session
-        user_id: User ID
-
-    Returns:
-        List[RefillAlert]: Alerts sorted by predicted refill date (soonest first)
+    Get all active refill alerts for a user from Firestore.
     """
-    return (
-        db.query(RefillAlert)
-        .filter(RefillAlert.user_id == user_id)
-        .order_by(RefillAlert.predicted_refill_date.asc())
-        .all()
-    )
+    docs = db.collection("refill_alerts").where("user_id", "==", user_id).stream()
+    alerts = [_doc_to_alert(doc) for doc in docs]
+    alerts.sort(key=lambda a: a.predicted_refill_date or "")
+    return alerts
 
 
-def get_all_refill_alerts(db: Session) -> List[RefillAlert]:
+def get_all_refill_alerts(db: Any) -> List[RefillAlert]:
     """
-    Get all refill alerts in the system (admin/pharmacist view).
-
-    Returns:
-        List[RefillAlert]: All alerts, soonest first
+    Get all refill alerts in the system (admin/pharmacist view) from Firestore.
     """
-    return (
-        db.query(RefillAlert)
-        .order_by(RefillAlert.predicted_refill_date.asc())
-        .all()
-    )
+    docs = db.collection("refill_alerts").stream()
+    alerts = [_doc_to_alert(doc) for doc in docs]
+    alerts.sort(key=lambda a: a.predicted_refill_date or "")
+    return alerts
 
 
-def mark_alert_notified(db: Session, alert_id: int) -> None:
+def mark_alert_notified(db: Any, alert_id: str) -> None:
     """
-    Mark a refill alert as 'notified' (user has seen it in the UI).
-
-    Args:
-        db: Database session
-        alert_id: Alert to update
+    Mark a refill alert as 'notified' in Firestore.
     """
-    alert = db.query(RefillAlert).filter(RefillAlert.id == alert_id).first()
-    if alert and alert.status == "pending":
-        alert.status = "notified"
-        db.commit()
+    doc_ref = db.collection("refill_alerts").document(alert_id)
+    doc = doc_ref.get()
+    if doc.exists and doc.to_dict().get("status") == "pending":
+        doc_ref.update({"status": "notified"})
 
 
-def mark_alert_ordered(db: Session, alert_id: int) -> None:
+def mark_alert_ordered(db: Any, alert_id: str) -> None:
     """
-    Mark a refill alert as 'ordered' (user clicked Reorder).
-
-    Args:
-        db: Database session
-        alert_id: Alert to update
+    Mark a refill alert as 'ordered' in Firestore.
     """
-    alert = db.query(RefillAlert).filter(RefillAlert.id == alert_id).first()
-    if alert:
-        alert.status = "ordered"
-        db.commit()
+    doc_ref = db.collection("refill_alerts").document(alert_id)
+    if doc_ref.get().exists:
+        doc_ref.update({"status": "ordered"})

@@ -1,0 +1,88 @@
+/* ============================================================
+   PHARMA AI AGENT — DESIGN SYSTEM
+   Purple / Violet theme | Molecule/DNA antigravity
+   ============================================================ */
+
+:root {
+  /* --- BRAND PALETTE --- */
+  --color-primary:        #7c3aed;   /* violet-600 */
+  --color-primary-light:  #a78bfa;   /* violet-400 */
+  --color-primary-glow:   #c4b5fd;   /* violet-300 */
+  --color-accent:         #06b6d4;   /* cyan — molecule highlight */
+  --color-accent-soft:    #67e8f9;
+
+  /* --- LIGHT MODE --- */
+  --bg-light-base:        #f3f0ff;   /* very soft violet tint */
+  --bg-light-orb1:        rgba(167, 139, 250, 0.55);  /* violet orb */
+  --bg-light-orb2:        rgba(196, 181, 253, 0.40);  /* lavender orb */
+  --bg-light-orb3:        rgba(6,   182, 212, 0.25);  /* cyan accent orb */
+
+  /* GLASS — LIGHT */
+  --glass-light-bg:       rgba(255, 255, 255, 0.18);
+  --glass-light-border:   rgba(255, 255, 255, 0.55);
+  --glass-light-shadow:   0 8px 32px rgba(124, 58, 237, 0.18),
+                           0 2px 8px  rgba(124, 58, 237, 0.10);
+  --glass-light-blur:     blur(18px) saturate(180%);
+  --glass-light-highlight: inset 0 1px 0 rgba(255,255,255,0.7);
+
+  /* TEXT — LIGHT */
+  --text-primary-light:   #1e1033;
+  --text-secondary-light: #4c3d8f;
+  --text-muted-light:     #7c6db0;
+
+  /* --- DARK MODE --- */
+  --bg-dark-base:         #07070f;
+  --bg-dark-orb1:         rgba(109, 40, 217, 0.35);   /* deep violet */
+  --bg-dark-orb2:         rgba(76,  29, 149, 0.25);   /* purple */
+  --bg-dark-orb3:         rgba(6,   182, 212, 0.12);  /* subtle cyan */
+
+  /* GLASS — DARK  ← Real glass feel: almost invisible fill */
+  --glass-dark-bg:        rgba(255, 255, 255, 0.04);
+  --glass-dark-border:    rgba(255, 255, 255, 0.10);
+  --glass-dark-shadow:    0 8px 32px rgba(0, 0, 0, 0.55),
+                           0 1px 0   rgba(255,255,255,0.06) inset;
+  --glass-dark-blur:      blur(20px) saturate(160%);
+  --glass-dark-highlight: inset 0 1px 0 rgba(255,255,255,0.10);
+  --glass-dark-glow:      0 0 0 1px rgba(167,139,250,0.15),
+                           0 0 24px rgba(124, 58, 237, 0.12);
+
+  /* TEXT — DARK */
+  --text-primary-dark:    #f0ebff;
+  --text-secondary-dark:  #c4b5fd;
+  --text-muted-dark:      #7c6db0;
+
+  /* --- SHARED --- */
+  --radius-glass:         20px;
+  --radius-icon:          16px;
+  --transition-smooth:    all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* --- ANTIGRAVITY MOLECULE --- */
+  --molecule-color-light: rgba(124, 58, 237, 0.22);
+  --molecule-color-dark:  rgba(167,139,250, 0.18);
+  --molecule-node-light:  rgba(124, 58, 237, 0.50);
+  --molecule-node-dark:   rgba(167,139,250, 0.45);
+  --molecule-bond-light:  rgba(6,182,212, 0.35);
+  --molecule-bond-dark:   rgba(6,182,212, 0.30);
+}
+
+/* backdrop-filter fallback for older browsers */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass-panel {
+    background: rgba(240, 235, 255, 0.92) !important;
+  }
+  .dark .glass-panel {
+    background: rgba(15, 10, 30, 0.95) !important;
+  }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .bg-orb,
+  .molecule-svg,
+  .dna-svg,
+  .bg-orb-1,
+  .bg-orb-2,
+  .bg-orb-3 {
+    animation: none !important;
+  }
+}

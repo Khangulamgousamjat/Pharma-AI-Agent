@@ -1,32 +1,12 @@
 """
-agents/symptom_agent.py — Symptom Checker Agent with MCQ-style triage.
-
-Phase 3 addition: Provides a structured, safe symptom assessment flow.
-
-IMPORTANT SAFETY CONSTRAINTS (non-negotiable):
-  1. This is NOT a diagnostic tool. All output includes disclaimers.
-  2. Red-flag symptoms (chest pain, severe breathlessness, unconsciousness,
-     severe bleeding) ALWAYS produce emergency instructions.
-  3. OTC recommendations ONLY suggest prescription_required=False medicines.
-  4. "See a doctor" is always the safest recommendation for ambiguous cases.
-  5. No Rx medicine is ever suggested, regardless of symptoms.
-
-Architecture:
-  - Phase 1 (check): Extract symptom categories + red-flag check via Gemini.
-  - Phase 2 (continue): Answer MCQs until max 6 questions answered.
-  - Phase 3 (finalize): Generate tiered recommendation (OTC / doctor / emergency).
-
-Session state is stored in symptom_sessions table, keyed by UUID session_id.
-
-LangSmith: Each question/answer pair and final decision creates a trace event.
+agents/symptom_agent.py — Symptom Checker Agent with MCQ-style triage using Firestore.
 """
 
 import json
 import logging
-from typing import Optional
+from typing import Optional, Any
 
 import google.generativeai as genai
-from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.constants.languages import get_language_instruction, DEFAULT_LANGUAGE
@@ -38,9 +18,6 @@ logger = logging.getLogger(__name__)
 # Max MCQ questions before forcing final recommendation
 MAX_QUESTIONS = 6
 
-# ---------------------------------------------------------------------------
-# Red-flag detection: symptoms requiring immediate emergency response
-# ---------------------------------------------------------------------------
 RED_FLAG_KEYWORDS = [
     # English
     "chest pain", "heart attack", "cannot breathe", "can't breathe",
@@ -53,10 +30,6 @@ RED_FLAG_KEYWORDS = [
     # Marathi transliterations (common)
     "chat dukhaate", "shas gheta nahi", "beshan",
 ]
-
-# ---------------------------------------------------------------------------
-# Gemini prompt templates — editable for quick tuning
-# ---------------------------------------------------------------------------
 
 INITIAL_SYMPTOM_PROMPT = """
 You are a safe, compassionate pharmacy assistant helping with symptom triage.
@@ -138,44 +111,16 @@ DISCLAIMER = (
 
 
 def _detect_red_flags(symptom_text: str) -> bool:
-    """
-    Quick local red-flag detection before calling Gemini.
-
-    This is a first-pass safety check using keyword matching.
-    Gemini also checks, but this local check adds defense-in-depth
-    and avoids any LLM response delay for emergency cases.
-
-    Args:
-        symptom_text: User-entered symptom description
-
-    Returns:
-        bool: True if any red-flag keyword found
-    """
     lower = symptom_text.lower()
     return any(flag in lower for flag in RED_FLAG_KEYWORDS)
 
 
 def _call_gemini(prompt: str) -> dict:
-    """
-    Call Gemini and return parsed JSON response.
-
-    Strips markdown code fences if present (Gemini sometimes adds them).
-
-    Args:
-        prompt: Full prompt string
-
-    Returns:
-        dict: Parsed JSON response
-
-    Raises:
-        ValueError: If response cannot be parsed as JSON
-    """
     genai.configure(api_key=settings.gemini_api_key)
     model = genai.GenerativeModel("gemini-2.5-flash")
     response = model.generate_content(prompt)
     text = response.text.strip()
 
-    # Strip markdown fences if present
     if text.startswith("```"):
         text = text.split("```")[1]
         if text.startswith("json"):
@@ -189,68 +134,41 @@ def _call_gemini(prompt: str) -> dict:
         raise ValueError(f"Invalid JSON response from LLM: {e}")
 
 
-def _get_otc_medicines_from_db(names: list, db: Session) -> list:
-    """
-    Validate suggested medicine names against DB and return OTC ones only.
-
-    Safety check: Even if Gemini suggests an Rx medicine by mistake,
-    this function filters it out before returning to the user.
-
-    Args:
-        names: List of medicine names to look up
-        db: Database session
-
-    Returns:
-        list: [{id, name, unit, prescription_required=False}]
-    """
+def _get_otc_medicines_from_db(names: list, db: Any) -> list:
     if not names:
         return []
 
+    from app.services.medicine_service import get_all_medicines
+    all_meds = get_all_medicines(db)
+
     results = []
     for name in names[:3]:  # limit to 3 suggestions
-        # Case-insensitive partial match
-        med = (
-            db.query(Medicine)
-            .filter(Medicine.name.ilike(f"%{name.split()[0]}%"))  # First word match
-            .filter(Medicine.prescription_required == False)  # noqa — OTC only
-            .first()
-        )
-        if med:
+        first_word = name.split()[0].lower()
+        match = None
+        for med in all_meds:
+            if not med.prescription_required and first_word in med.name.lower():
+                match = med
+                break
+        if match:
             results.append({
-                "id": med.id,
-                "name": med.name,
-                "unit": med.unit,
-                "price": med.price,
-                "description": med.description,
+                "id": match.id,
+                "name": match.name,
+                "unit": match.unit,
+                "price": match.price,
+                "description": match.description,
             })
 
     return results
 
 
 def start_symptom_check(
-    user_id: int,
+    user_id: str,
     initial_symptom: str,
     language: str,
-    db: Session,
+    db: Any,
 ) -> dict:
     """
-    Start a new symptom checking session.
-
-    Creates a SymptomSession record and returns either:
-    - Emergency instructions (if red flags detected)
-    - First MCQ question (if safe to continue)
-
-    Args:
-        user_id: Authenticated user ID
-        initial_symptom: Free-text symptom from user
-        language: ISO language code
-        db: Database session
-
-    Returns:
-        dict: {
-            session_id, level, question, message, disclaimer,
-            suggested_medicines, question_number
-        }
+    Start a new symptom checking session in Firestore.
     """
     logger.info(f"[SymptomAgent] New session user={user_id} symptom='{initial_symptom[:60]}'")
 
@@ -265,7 +183,9 @@ def start_symptom_check(
             "or go to the nearest emergency room. "
             "Do NOT rely on this app — seek immediate professional help."
         )
+        session_ref = db.collection("symptom_sessions").document()
         session = SymptomSession(
+            id=session_ref.id,
             user_id=user_id,
             language=language,
             initial_symptom=initial_symptom,
@@ -274,9 +194,7 @@ def start_symptom_check(
             answers="[]",
             question_number=0,
         )
-        db.add(session)
-        db.commit()
-        db.refresh(session)
+        session_ref.set(session.to_dict())
         return {
             "session_id": session.session_id,
             "level": "emergency",
@@ -307,7 +225,9 @@ def start_symptom_check(
     # If Gemini also flagged emergency
     if parsed.get("level") == "emergency":
         msg = parsed.get("message", "Please seek immediate medical attention.")
+        session_ref = db.collection("symptom_sessions").document()
         session = SymptomSession(
+            id=session_ref.id,
             user_id=user_id,
             language=language,
             initial_symptom=initial_symptom,
@@ -315,9 +235,7 @@ def start_symptom_check(
             recommendation=msg,
             answers="[]",
         )
-        db.add(session)
-        db.commit()
-        db.refresh(session)
+        session_ref.set(session.to_dict())
         return {
             "session_id": session.session_id,
             "level": "emergency",
@@ -331,7 +249,9 @@ def start_symptom_check(
 
     # Create session for MCQ flow
     first_question = parsed.get("question", "Can you describe your symptoms in more detail?")
+    session_ref = db.collection("symptom_sessions").document()
     session = SymptomSession(
+        id=session_ref.id,
         user_id=user_id,
         language=language,
         initial_symptom=initial_symptom,
@@ -339,9 +259,7 @@ def start_symptom_check(
         question_number=1,
         answers="[]",
     )
-    db.add(session)
-    db.commit()
-    db.refresh(session)
+    session_ref.set(session.to_dict())
 
     return {
         "session_id": session.session_id,
@@ -356,29 +274,28 @@ def start_symptom_check(
     }
 
 
+def _doc_to_session(doc) -> SymptomSession:
+    data = doc.to_dict()
+    data['id'] = doc.id
+    if 'created_at' in data and not isinstance(data['created_at'], str) and hasattr(data['created_at'], 'to_datetime'):
+        data['created_at'] = data['created_at'].to_datetime()
+    return SymptomSession(**data)
+
+
 def continue_symptom_check(
     session_id: str,
     answer: str,
-    db: Session,
+    db: Any,
 ) -> dict:
     """
-    Submit an answer to the current MCQ and get the next question or final recommendation.
-
-    Args:
-        session_id: UUID from start_symptom_check response
-        answer: User's answer to the current question
-        db: Database session
-
-    Returns:
-        dict: Same structure as start_symptom_check, or with final recommendation
+    Submit an answer to the current MCQ and get the next question or final recommendation in Firestore.
     """
-    session = (
-        db.query(SymptomSession)
-        .filter(SymptomSession.session_id == session_id)
-        .first()
-    )
-    if not session:
+    docs = db.collection("symptom_sessions").where("session_id", "==", session_id).limit(1).get()
+    if not docs:
         return {"error": "Session not found. Please start a new check."}
+    
+    session = _doc_to_session(docs[0])
+    doc_ref = db.collection("symptom_sessions").document(session.id)
 
     if session.level in ("emergency", "otc", "doctor"):
         return {"error": "This session is already complete.", "level": session.level}
@@ -393,9 +310,14 @@ def continue_symptom_check(
         "question": session.current_question,
         "answer": answer,
     })
-    session.answers = json.dumps(answers)
-    session.question_number += 1
-    db.commit()
+    
+    answers_str = json.dumps(answers)
+    q_num = session.question_number + 1
+
+    doc_ref.update({
+        "answers": answers_str,
+        "question_number": q_num
+    })
 
     # Build QA history string for Gemini
     qa_lines = "\n".join(
@@ -407,7 +329,7 @@ def continue_symptom_check(
         lang_instruction=lang_instruction,
         initial_symptom=session.initial_symptom,
         qa_history=qa_lines,
-        question_number=session.question_number,
+        question_number=q_num,
         max_questions=MAX_QUESTIONS,
     )
 
@@ -426,13 +348,12 @@ def continue_symptom_check(
 
     # -- ONGOING: More questions
     if current_level == "ongoing" and parsed.get("question"):
-        session.current_question = parsed["question"]
-        db.commit()
+        doc_ref.update({"current_question": parsed["question"]})
         return {
             "session_id": session.session_id,
             "level": "ongoing",
             "question": parsed["question"],
-            "question_number": session.question_number,
+            "question_number": q_num,
             "max_questions": MAX_QUESTIONS,
             "message": None,
             "disclaimer": DISCLAIMER,
@@ -452,11 +373,12 @@ def continue_symptom_check(
     )
 
     # Persist final state
-    session.level = final_level
-    session.recommendation = recommendation
-    session.current_question = None
-    session.suggested_medicines = json.dumps(validated_medicines)
-    db.commit()
+    doc_ref.update({
+        "level": final_level,
+        "recommendation": recommendation,
+        "current_question": None,
+        "suggested_medicines": json.dumps(validated_medicines)
+    })
 
     logger.info(
         f"[SymptomAgent] Session {session_id} complete: level={final_level} "
@@ -467,7 +389,7 @@ def continue_symptom_check(
         "session_id": session.session_id,
         "level": final_level,
         "question": None,
-        "question_number": session.question_number,
+        "question_number": q_num,
         "message": recommendation,
         "disclaimer": DISCLAIMER,
         "suggested_medicines": validated_medicines,

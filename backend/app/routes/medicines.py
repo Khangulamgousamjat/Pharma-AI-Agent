@@ -1,22 +1,14 @@
 """
-routes/medicines.py — Medicine inventory API endpoints.
-
-Routes:
-    GET /medicines           — List all medicines
-    GET /medicines/search    — Search medicines by name query
-    GET /medicines/{id}      — Get a single medicine by ID
-
-Used by the AI agent to look up medicine details during order processing.
+routes/medicines.py — Medicine inventory API endpoints for Firestore.
 """
 
 from fastapi import APIRouter, Depends, Query, Header, HTTPException, status
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
-from sqlalchemy.orm import Session
-from typing import List, Optional, Annotated
+from typing import List, Optional, Annotated, Any
 import os
 
-from app.database import get_db
+from app.firebase_db import get_db
 from app.schemas.medicine import MedicineResponse
 from app.services.medicine_service import (
     get_all_medicines,
@@ -29,53 +21,36 @@ router = APIRouter(prefix="/medicines", tags=["Medicines"])
 
 
 @router.get("", response_model=List[MedicineResponse])
-async def list_medicines(db: Annotated[Session, Depends(get_db)]):
+async def list_medicines(db: Any = Depends(get_db)):
     """
     Get all medicines in the inventory.
-
-    Returns complete list sorted by name, including stock levels
-    and prescription_required flags.
     """
     return get_all_medicines(db)
 
 
 @router.get("/search", response_model=List[MedicineResponse])
 async def search(
-    db: Annotated[Session, Depends(get_db)],
     q: str = Query(..., min_length=1, description="Search term for medicine name"),
+    db: Any = Depends(get_db),
 ):
     """
     Search medicines by name (partial, case-insensitive match).
-
-    Args:
-        q: Search query string
-        db: Database session
-
-    Example:
-        GET /medicines/search?q=para  → returns Paracetamol medicines
     """
     return search_medicines(db, q)
 
 
 @router.get("/{medicine_id}", response_model=MedicineResponse)
-async def get_medicine(medicine_id: int, db: Annotated[Session, Depends(get_db)]):
+async def get_medicine(medicine_id: str, db: Any = Depends(get_db)):
     """
-    Get a single medicine by its ID.
-
-    Args:
-        medicine_id: Medicine primary key
-        db: Database session
-
-    Raises:
-        404: If medicine not found
+    Get a single medicine by its document ID.
     """
     return get_medicine_by_id(db, medicine_id)
 
 
-@router.get("/export")
+@router.get("/export/excel")
 async def export_inventory(
-    db: Annotated[Session, Depends(get_db)],
     authorization: Optional[str] = Header(None),
+    db: Any = Depends(get_db),
 ):
     """
     Export full medicine inventory as Excel. Admin or Pharmacist only.
@@ -89,6 +64,7 @@ async def export_inventory(
     if payload.get("role") not in ("admin", "pharmacist"):
         raise HTTPException(status_code=403, detail="Admin or Pharmacist access required.")
 
+    # We need to update export_service.py for Firestore as well, but for now we leave it here.
     from app.services.export_service import export_inventory_to_excel
     file_path = export_inventory_to_excel(db)
     return FileResponse(

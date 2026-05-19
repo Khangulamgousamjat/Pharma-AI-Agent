@@ -23,17 +23,11 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from supabase import create_client, Client
 import google.generativeai as genai
 from app.config import settings
+from firebase_admin import storage
 
 logger = logging.getLogger(__name__)
-
-# Initialize Supabase client
-supabase: Optional[Client] = None
-if settings.supabase_url and settings.supabase_key:
-    supabase = create_client(settings.supabase_url, settings.supabase_key)
-    logger.info("Supabase Storage client initialized.")
 
 # ---------------------------------------------------------------------------
 # Vision Model Configuration
@@ -197,7 +191,7 @@ async def extract_medicine_data_from_image(file_bytes: bytes, filename: str) -> 
 
 def save_uploaded_image(file_bytes: bytes, filename: str) -> str:
     """
-    Save an uploaded prescription image directly to Supabase Storage.
+    Save an uploaded prescription image directly to Firebase Storage.
 
     Args:
         file_bytes: Raw image bytes from the multipart upload
@@ -208,34 +202,29 @@ def save_uploaded_image(file_bytes: bytes, filename: str) -> str:
     """
     import time
     
-    if not supabase:
-        raise ValueError("Supabase is not configured properly in the environment.")
-
     # Generate unique filename to avoid collisions
     timestamp = int(time.time())
     ext = Path(filename).suffix.lower() or ".jpg"
     safe_name = f"prescription_{timestamp}{ext}"
 
     try:
-        bucket = settings.supabase_bucket
+        bucket = storage.bucket()
+        blob = bucket.blob(f"prescriptions/{safe_name}")
         
         # Determine content type
         content_type = "image/jpeg"
         if ext == ".png": content_type = "image/png"
         elif ext == ".webp": content_type = "image/webp"
         
-        # Upload buffer to Supabase
-        res = supabase.storage.from_(bucket).upload(
-            file=file_bytes,
-            path=safe_name,
-            file_options={"content-type": content_type}
-        )
+        # Upload buffer to Firebase Storage
+        blob.upload_from_string(file_bytes, content_type=content_type)
         
-        # Retrieve the public URL
-        public_url = supabase.storage.from_(bucket).get_public_url(safe_name)
+        # Make it publicly readable
+        blob.make_public()
         
-        logger.info(f"[VisionService] Image uploaded to Supabase: {public_url}")
+        public_url = blob.public_url
+        logger.info(f"[VisionService] Image uploaded to Firebase Storage: {public_url}")
         return public_url
     except Exception as e:
-        logger.error(f"[VisionService] Supabase upload failed: {e}")
+        logger.error(f"[VisionService] Firebase Storage upload failed: {e}")
         raise e

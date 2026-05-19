@@ -1,25 +1,17 @@
 """
-utils/seed_data.py — Seed initial medicine inventory into the database.
+utils/seed_data.py — Seed initial medicine inventory and default users into Firebase.
 
-Run on application startup to ensure the database has sample medicines
-for testing and demonstration. Uses upsert logic (skip if already exists).
+Run on application startup to ensure Firestore has sample medicines
+and Firebase Auth has default accounts.
 """
 
-from sqlalchemy.orm import Session
-from datetime import date
+from datetime import date, datetime
 import logging
+from firebase_admin import auth as firebase_auth, firestore
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Sample Medicine Catalogue
-# ---------------------------------------------------------------------------
-# Medicines are split into:
-#   - OTC (Over The Counter): prescription_required = False → agent allows order
-#   - Rx (Prescription):      prescription_required = True  → agent rejects order
-# ---------------------------------------------------------------------------
 SEED_MEDICINES = [
-    # OTC Medicines — agent can order these freely
     {
         "name": "Paracetamol 500mg",
         "stock": 500,
@@ -83,7 +75,6 @@ SEED_MEDICINES = [
         "expiry_date": date(2026, 12, 31),
         "description": "Oral rehydration salts for dehydration. OTC.",
     },
-    # Rx Medicines — agent will reject without prescription
     {
         "name": "Amoxicillin 500mg",
         "stock": 200,
@@ -114,125 +105,94 @@ SEED_MEDICINES = [
 ]
 
 
-def seed_medicines(db: Session) -> None:
-    """
-    Seed the medicines table with sample data.
-
-    Skips medicines that already exist (by name) to prevent duplicates.
-    Safe to call on every startup.
-
-    Args:
-        db: SQLAlchemy database session
-    """
-    from app.models.medicine import Medicine
-
+def seed_medicines(db: firestore.Client) -> None:
     seeded_count = 0
     for med_data in SEED_MEDICINES:
-        # Check if medicine already exists by name
-        existing = db.query(Medicine).filter(Medicine.name == med_data["name"]).first()
+        existing = db.collection("medicines").where("name", "==", med_data["name"]).limit(1).get()
         if not existing:
-            medicine = Medicine(**med_data)
-            db.add(medicine)
+            med_dict = med_data.copy()
+            if isinstance(med_dict.get("expiry_date"), date):
+                med_dict["expiry_date"] = datetime.combine(med_dict["expiry_date"], datetime.min.time())
+            
+            doc_ref = db.collection("medicines").document()
+            med_dict["id"] = doc_ref.id
+            doc_ref.set(med_dict)
             seeded_count += 1
 
     if seeded_count > 0:
-        db.commit()
-        logger.info(f"Seeded {seeded_count} medicines into database.")
+        logger.info(f"Seeded {seeded_count} medicines into Firestore.")
     else:
-        logger.info("Medicine seed data already present, skipping.")
+        logger.info("Medicine seed data already present in Firestore, skipping.")
 
 
-def seed_admin_user(db: Session) -> None:
-    """
-    Create or update the default admin user.
-    Admin credentials: admin@gmail.com / Kingkhan@12
-    """
-    from app.models.user import User
-    from app.utils.security import hash_password
-
-    admin_email = "admin@gmail.com"
-    admin_password = "Kingkhan@12"
-
-    admin = db.query(User).filter(User.email == admin_email).first()
-    if not admin:
-        admin = User(
-            name="Admin",
-            email=admin_email,
-            password_hash=hash_password(admin_password),
-            role="admin",
-            is_approved=1
+def _seed_auth_and_firestore_user(db: firestore.Client, email: str, password: str, name: str, role: str, is_approved: bool) -> None:
+    try:
+        user_record = firebase_auth.get_user_by_email(email)
+        uid = user_record.uid
+    except firebase_auth.UserNotFoundError:
+        user_record = firebase_auth.create_user(
+            email=email,
+            password=password,
+            display_name=name
         )
-        db.add(admin)
-        db.commit()
-        logger.info(f"Created admin user: {admin_email}")
+        uid = user_record.uid
+        logger.info(f"Created Firebase Auth user: {email} (uid={uid})")
+
+    # Set role claim
+    firebase_auth.set_custom_user_claims(uid, {"role": role})
+
+    # Sync to Firestore using the uid as the document ID
+    doc_ref = db.collection("users").document(uid)
+    doc = doc_ref.get()
+    if not doc.exists:
+        doc_ref.set({
+            "id": uid,
+            "name": name,
+            "email": email,
+            "role": role,
+            "is_approved": is_approved,
+            "ui_theme": "dark",
+            "preferred_language": "en",
+            "created_at": firestore.SERVER_TIMESTAMP
+        })
+        logger.info(f"Created Firestore profile for user: {email} (uid={uid})")
     else:
-        # Update existing admin with new credentials
-        admin.password_hash = hash_password(admin_password)
-        admin.role = "admin"
-        admin.is_approved = 1
-        db.commit()
-        logger.info(f"Updated existing admin user: {admin_email}")
+        doc_ref.update({
+            "name": name,
+            "role": role,
+            "is_approved": is_approved
+        })
+        logger.info(f"Updated Firestore profile for user: {email} (uid={uid})")
 
 
-def seed_pharmacist_user(db: Session) -> None:
-    """
-    Phase 2: Create a default pharmacist user if none exists.
-
-    Pharmacist credentials:
-        Email: pharmacist@pharmaagent.com
-        Password: pharma123
-
-    The pharmacist can:
-      - View pending prescriptions (GET /pharmacist/prescriptions/pending)
-      - Approve prescriptions (POST /pharmacist/prescriptions/{id}/verify)
-
-    Args:
-        db: SQLAlchemy database session
-    """
-    from app.models.user import User
-    from app.utils.security import hash_password
-
-    existing = db.query(User).filter(User.email == "pharmacist@pharmaagent.com").first()
-    if not existing:
-        pharmacist = User(
-            name="Dr. Pharmacist",
-            email="pharmacist@pharmaagent.com",
-            password_hash=hash_password("pharma123"),
-            role="pharmacist",
-            is_approved=1
-        )
-        db.add(pharmacist)
-        db.commit()
-        logger.info("Default pharmacist user created: pharmacist@pharmaagent.com / pharma123")
-    else:
-        logger.info("Pharmacist user already exists, skipping.")
+def seed_admin_user(db: firestore.Client) -> None:
+    _seed_auth_and_firestore_user(
+        db=db,
+        email="admin@gmail.com",
+        password="Kingkhan@12",
+        name="Admin",
+        role="admin",
+        is_approved=True
+    )
 
 
-def seed_demo_user(db: Session) -> None:
-    """
-    Create a default demo user (regular user role) if none exists.
+def seed_pharmacist_user(db: firestore.Client) -> None:
+    _seed_auth_and_firestore_user(
+        db=db,
+        email="pharmacist@pharmaagent.com",
+        password="pharma123",
+        name="Dr. Pharmacist",
+        role="pharmacist",
+        is_approved=True
+    )
 
-    Demo credentials:
-        Email: john@example.com
-        Password: user123
 
-    Used for the "user" role tab on the login page.
-    """
-    from app.models.user import User
-    from app.utils.security import hash_password
-
-    existing = db.query(User).filter(User.email == "john@example.com").first()
-    if not existing:
-        demo_user = User(
-            name="John Demo",
-            email="john@example.com",
-            password_hash=hash_password("user123"),
-            role="user",
-            is_approved=1
-        )
-        db.add(demo_user)
-        db.commit()
-        logger.info("Demo user created: john@example.com / user123")
-    else:
-        logger.info("Demo user already exists, skipping.")
-
+def seed_demo_user(db: firestore.Client) -> None:
+    _seed_auth_and_firestore_user(
+        db=db,
+        email="john@example.com",
+        password="user123",
+        name="John Demo",
+        role="user",
+        is_approved=True
+    )

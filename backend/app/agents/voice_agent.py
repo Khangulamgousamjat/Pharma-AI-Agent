@@ -16,9 +16,7 @@ LangSmith trace structure:
 """
 
 import logging
-from typing import Optional
-
-from sqlalchemy.orm import Session
+from typing import Optional, Any
 
 from app.constants.languages import (
     get_language_instruction,
@@ -41,7 +39,7 @@ class VoiceAgent:
         agent = VoiceAgent()
         result = await agent.process(
             transcript="Mujhe paracetamol chahiye",
-            user_id=1,
+            user_id="user123",
             language="hi",
             db=db
         )
@@ -53,9 +51,9 @@ class VoiceAgent:
     async def process(
         self,
         transcript: str,
-        user_id: int,
+        user_id: str,
         language: str,
-        db: Session,
+        db: Any,
     ) -> dict:
         """
         Process a voice transcript and return agent response.

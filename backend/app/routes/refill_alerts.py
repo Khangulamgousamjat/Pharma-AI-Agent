@@ -1,24 +1,16 @@
 """
-routes/refill_alerts.py — Refill alert and prediction API.
-
-Phase 2 addition: Endpoints to view refill predictions and trigger the
-Refill Prediction Agent.
-
-Endpoints:
-  GET  /refill-alerts/user/{user_id}   — User's refill alerts
-  GET  /refill-alerts/all              — All alerts (admin)
-  POST /refill-alerts/run-prediction   — Trigger prediction for a user
+routes/refill_alerts.py — Refill alert and prediction API using Firestore.
 """
 
 import logging
-from typing import List, Annotated
+from typing import List, Any
 
 from fastapi import APIRouter, Depends, status
-from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.firebase_db import get_db
 from app.schemas.refill import RefillAlertResponse, RefillPredictionRequest, RefillPredictionResponse
 from app.services.refill_service import get_user_refill_alerts, get_all_refill_alerts
+from app.services.medicine_service import get_all_medicines
 from app.agents.refill_agent import get_refill_agent
 
 router = APIRouter(prefix="/refill-alerts", tags=["Refill Alerts"])
@@ -29,21 +21,20 @@ logger = logging.getLogger(__name__)
     "/user/{user_id}",
     response_model=List[RefillAlertResponse],
     summary="Get refill alerts for a specific user",
-    description="Returns AI-predicted refill dates for medicines the user has ordered.",
 )
 def get_user_alerts(
-    user_id: int,
-    db: Annotated[Session, Depends(get_db)],
+    user_id: str,
+    db: Any = Depends(get_db),
 ):
-    """
-    Get all active refill alerts for a user.
-
-    Alerts are ordered by predicted refill date (soonest first).
-    Each alert contains: medicine name, predicted date, days supply, status.
-    """
     alerts = get_user_refill_alerts(db, user_id)
+    
+    # Pre-load medicine mappings to avoid N+1 queries
+    meds = get_all_medicines(db)
+    med_map = {m.id: m for m in meds}
+
     result = []
     for a in alerts:
+        med = med_map.get(a.medicine_id)
         result.append(RefillAlertResponse(
             id=a.id,
             user_id=a.user_id,
@@ -52,8 +43,8 @@ def get_user_alerts(
             days_supply=a.days_supply,
             status=a.status,
             created_at=a.created_at,
-            medicine_name=a.medicine.name if a.medicine else None,
-            medicine_unit=a.medicine.unit if a.medicine else None,
+            medicine_name=med.name if med else None,
+            medicine_unit=med.unit if med else None,
         ))
     return result
 
@@ -64,14 +55,16 @@ def get_user_alerts(
     summary="Get all refill alerts (admin/pharmacist view)",
 )
 def get_all_alerts(
-    db: Annotated[Session, Depends(get_db)],
+    db: Any = Depends(get_db),
 ):
-    """
-    Get all refill alerts across all users — for admin monitoring.
-    """
     alerts = get_all_refill_alerts(db)
+    
+    meds = get_all_medicines(db)
+    med_map = {m.id: m for m in meds}
+
     result = []
     for a in alerts:
+        med = med_map.get(a.medicine_id)
         result.append(RefillAlertResponse(
             id=a.id,
             user_id=a.user_id,
@@ -80,8 +73,8 @@ def get_all_alerts(
             days_supply=a.days_supply,
             status=a.status,
             created_at=a.created_at,
-            medicine_name=a.medicine.name if a.medicine else None,
-            medicine_unit=a.medicine.unit if a.medicine else None,
+            medicine_name=med.name if med else None,
+            medicine_unit=med.unit if med else None,
         ))
     return result
 
@@ -91,23 +84,11 @@ def get_all_alerts(
     response_model=RefillPredictionResponse,
     status_code=status.HTTP_200_OK,
     summary="Trigger refill prediction for a user",
-    description="Runs the Refill Agent to analyze order history and create/update alerts.",
 )
 async def run_prediction(
     request: RefillPredictionRequest,
-    db: Annotated[Session, Depends(get_db)],
+    db: Any = Depends(get_db),
 ):
-    """
-    Trigger the Refill Prediction Agent for a specific user.
-
-    Analyzes the user's last 90 days of orders, calculates days supply
-    remaining for each medicine, and creates refill alerts for medicines
-    due within 7 days.
-
-    This endpoint can be called:
-    - Manually by admin/pharmacist from the dashboard
-    - After an order is created (for proactive alerts)
-    """
     logger.info(f"[RefillRoute] Running prediction for user_id={request.user_id}")
     refill_agent = get_refill_agent()
     result = await refill_agent.predict(db, request.user_id)

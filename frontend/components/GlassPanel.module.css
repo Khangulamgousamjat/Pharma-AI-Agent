@@ -1,0 +1,120 @@
+/* ============================================================
+   GlassPanel.module.css — Real glassmorphism for Pharma AI
+   ============================================================ */
+
+/* ── BASE GLASS — LIGHT MODE ── */
+.glass {
+  position: relative;
+  background: var(--glass-light-bg);
+  backdrop-filter: var(--glass-light-blur);
+  -webkit-backdrop-filter: var(--glass-light-blur);
+  border: 1px solid var(--glass-light-border);
+  border-radius: var(--radius-glass);
+  box-shadow: var(--glass-light-shadow), var(--glass-light-highlight);
+  transition: var(--transition-smooth);
+  overflow: hidden;
+}
+
+/* Inner top-edge highlight strip — the magic that makes glass look REAL */
+.glassHighlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.9) 30%,
+    rgba(255, 255, 255, 0.9) 70%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── DARK MODE GLASS — real glass appearance (almost invisible fill) ── */
+:global(.dark) .glass,
+:global([data-theme="dark"]) .glass {
+  background: var(--glass-dark-bg);
+  backdrop-filter: var(--glass-dark-blur);
+  -webkit-backdrop-filter: var(--glass-dark-blur);
+  border-color: var(--glass-dark-border);
+  box-shadow: var(--glass-dark-shadow), var(--glass-dark-glow);
+}
+
+:global(.dark) .glassHighlight,
+:global([data-theme="dark"]) .glassHighlight {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.12) 30%,
+    rgba(255, 255, 255, 0.12) 70%,
+    transparent 100%
+  );
+}
+
+/* ── VARIANTS ── */
+.card {
+  padding: 24px;
+  border-radius: 20px;
+}
+
+.modal {
+  padding: 32px;
+  border-radius: 24px;
+}
+
+.navbar {
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  border-bottom-color: rgba(167, 139, 250, 0.20);
+}
+
+:global(.dark) .navbar,
+:global([data-theme="dark"]) .navbar {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.sidebar {
+  border-radius: 0;
+  border-top: none;
+  border-bottom: none;
+  border-left: none;
+  border-right-color: rgba(167, 139, 250, 0.18);
+}
+
+:global(.dark) .sidebar,
+:global([data-theme="dark"]) .sidebar {
+  border-right-color: rgba(255, 255, 255, 0.06);
+}
+
+.default {
+  padding: 20px;
+}
+
+/* ── HOVER EFFECT ── */
+.hoverEffect {
+  cursor: pointer;
+}
+
+.hoverEffect:hover {
+  border-color: rgba(167, 139, 250, 0.6);
+  box-shadow:
+    var(--glass-light-shadow),
+    0 0 0 1px rgba(167, 139, 250, 0.3),
+    0 20px 40px rgba(124, 58, 237, 0.18);
+  transform: translateY(-2px);
+}
+
+:global(.dark) .hoverEffect:hover,
+:global([data-theme="dark"]) .hoverEffect:hover {
+  border-color: rgba(167, 139, 250, 0.25);
+  box-shadow:
+    var(--glass-dark-shadow),
+    0 0 0 1px rgba(167, 139, 250, 0.2),
+    0 20px 40px rgba(0, 0, 0, 0.45);
+  transform: translateY(-2px);
+}

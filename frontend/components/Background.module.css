@@ -1,0 +1,174 @@
+/* ============================================================
+   Background.module.css — Animated background for Pharma AI
+   ============================================================ */
+
+/* ROOT — Full-screen fixed layer sitting behind all content */
+.bgRoot {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+
+  /* LIGHT MODE BASE */
+  background:
+    radial-gradient(
+      ellipse 80% 80% at 20% 10%,
+      var(--bg-light-orb1) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 60% 70% at 80% 80%,
+      var(--bg-light-orb3) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 90% 60% at 50% 50%,
+      var(--bg-light-orb2) 0%,
+      transparent 70%
+    ),
+    var(--bg-light-base);
+}
+
+/* DARK MODE BACKGROUND */
+:global(.dark) .bgRoot,
+:global([data-theme="dark"]) .bgRoot {
+  background:
+    radial-gradient(
+      ellipse 70% 70% at 15% 15%,
+      var(--bg-dark-orb1) 0%,
+      transparent 65%
+    ),
+    radial-gradient(
+      ellipse 55% 55% at 85% 85%,
+      var(--bg-dark-orb3) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 80% 50% at 50% 60%,
+      var(--bg-dark-orb2) 0%,
+      transparent 70%
+    ),
+    var(--bg-dark-base);
+}
+
+/* ── ORB BLOBS ── */
+.orb1,
+.orb2,
+.orb3 {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.65;
+  animation: orbFloat linear infinite;
+}
+
+.orb1 {
+  width: 620px;
+  height: 620px;
+  top: -160px;
+  left: -110px;
+  background: radial-gradient(circle, var(--color-primary-glow), transparent 70%);
+  animation-duration: 30s;
+  animation-delay: 0s;
+}
+
+.orb2 {
+  width: 500px;
+  height: 500px;
+  bottom: -100px;
+  right: -80px;
+  background: radial-gradient(circle, var(--color-accent-soft), transparent 70%);
+  animation-duration: 25s;
+  animation-delay: -8s;
+}
+
+.orb3 {
+  width: 420px;
+  height: 420px;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, var(--color-primary-light), transparent 70%);
+  animation-duration: 35s;
+  animation-delay: -15s;
+}
+
+@keyframes orbFloat {
+  0%   { transform: translate(0px,   0px)   scale(1);    }
+  25%  { transform: translate(30px, -20px)  scale(1.05); }
+  50%  { transform: translate(-20px, 30px)  scale(0.97); }
+  75%  { transform: translate(20px,  15px)  scale(1.03); }
+  100% { transform: translate(0px,   0px)   scale(1);    }
+}
+
+/* Fix for orb3 — its transform is shared with animation */
+.orb3 {
+  top: 40%;
+  left: 50%;
+  margin-left: -210px;
+  margin-top: -210px;
+}
+
+/* ── MOLECULE LAYER ── */
+.moleculeLayer {
+  position: absolute;
+  inset: 0;
+}
+
+.moleculeSvg {
+  position: absolute;
+  animation:
+    antigravityFloat ease-in-out infinite,
+    slowRotate linear infinite;
+  opacity: 0.65;
+}
+
+.dnaSvg {
+  position: absolute;
+  animation:
+    antigravityFloat ease-in-out infinite,
+    slowRotate linear infinite;
+  opacity: 0.45;
+}
+
+/* ── Positions for each floating element ── */
+.mol1  { top: 5%;    left: 5%;  }
+.mol2  { top: 60%;   left: 78%; }
+.mol3  { bottom: 2%; right: 3%; }
+.dna1  { top: 28%;   left: 13%; width: 80px;  height: 200px; }
+.dna2  { top: 8%;    right: 10%; width: 60px; height: 150px; }
+
+@keyframes antigravityFloat {
+  0%   { transform: translateY(0px)   rotate(0deg);  }
+  33%  { transform: translateY(-24px) rotate(3deg);  }
+  66%  { transform: translateY(-12px) rotate(-2deg); }
+  100% { transform: translateY(0px)   rotate(0deg);  }
+}
+
+@keyframes slowRotate {
+  from { transform: rotate(0deg);   }
+  to   { transform: rotate(360deg); }
+}
+
+/* ── SVG COLORS — LIGHT MODE ── */
+.bond        { stroke: var(--molecule-bond-light); }
+.rung        { stroke: var(--molecule-bond-light); }
+.node        { fill:   var(--molecule-node-light); }
+.nodeCenter  { fill:   var(--color-primary);       }
+.strand1     { stroke: var(--molecule-node-light); }
+.strand2     { stroke: var(--molecule-bond-light); }
+
+/* ── SVG COLORS — DARK MODE ── */
+:global(.dark) .bond,
+:global([data-theme="dark"]) .bond      { stroke: var(--molecule-bond-dark); }
+:global(.dark) .rung,
+:global([data-theme="dark"]) .rung      { stroke: var(--molecule-bond-dark); }
+:global(.dark) .node,
+:global([data-theme="dark"]) .node      { fill:   var(--molecule-node-dark); }
+:global(.dark) .nodeCenter,
+:global([data-theme="dark"]) .nodeCenter{ fill:   var(--color-primary-light); }
+:global(.dark) .strand1,
+:global([data-theme="dark"]) .strand1   { stroke: var(--molecule-node-dark); }
+:global(.dark) .strand2,
+:global([data-theme="dark"]) .strand2   { stroke: var(--molecule-bond-dark); }

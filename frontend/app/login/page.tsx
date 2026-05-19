@@ -1,17 +1,20 @@
 "use client";
 
-import { useState, FormEvent, useEffect } from "react";
+import { useState, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { loginUser } from "@/lib/api";
-import { saveAuth } from "@/lib/auth";
+import { ArrowLeft, ChevronDown, Chrome } from "lucide-react";
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { fetchMyProfile, registerUser } from "@/lib/api";
+import { saveUserLocal } from "@/lib/auth";
 import GlassCard from "@/components/GlassCard";
 
 export default function LoginPage() {
     const router = useRouter();
     const [form, setForm] = useState({ email: "", password: "" });
     const [selectedRole, setSelectedRole] = useState("user");
+    const [dropdownOpen, setDropdownOpen] = useState(false);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
@@ -26,25 +29,86 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            const res = await loginUser(form);
-            saveAuth(res.access_token, {
-                id: res.user.id,
-                name: res.user.name,
-                email: res.user.email,
-                role: res.user.role as "user" | "admin" | "pharmacist",
+            // 1. Sign in with Firebase Auth
+            const userCredential = await signInWithEmailAndPassword(auth, form.email, form.password);
+            
+            // Wait for auth observer to set token internally
+            const token = await userCredential.user.getIdToken();
+            
+            // 2. Fetch the user profile from our backend (which contains the Role)
+            const profile = await fetchMyProfile(token);
+            
+            saveUserLocal({
+                id: profile.id,
+                name: profile.name,
+                email: profile.email,
+                role: profile.role as "user" | "admin" | "pharmacist",
             });
 
             // Route correctly based on role
-            if (res.user.role === "admin") {
+            if (profile.role === "admin") {
                 router.push("/admin");
-            } else if (res.user.role === "pharmacist") {
+            } else if (profile.role === "pharmacist") {
                 router.push("/pharmacist");
             } else {
-                router.push("/chat"); // User goes to chat by default
+                router.push("/chat");
             }
-        } catch (err: unknown) {
-            let message = "Login failed. Please try again.";
-            if (err instanceof Error && err.message) message = err.message;
+        } catch (err: any) {
+            let message = "Login failed. Please check your credentials.";
+            if (err.code === "auth/invalid-credential") {
+                 message = "Invalid email or password.";
+            } else if (err.message) {
+                 message = err.message;
+            }
+            setError(message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGoogleSignIn = async () => {
+        setError("");
+        setLoading(true);
+        try {
+            const provider = new GoogleAuthProvider();
+            const userCredential = await signInWithPopup(auth, provider);
+            
+            // Force token update
+            const token = await userCredential.user.getIdToken(true);
+            
+            let profile;
+            try {
+                // Check if user profile already exists
+                profile = await fetchMyProfile(token);
+            } catch (profileErr) {
+                // If profile doesn't exist, auto-register on the backend with "user" role
+                profile = await registerUser({
+                    name: userCredential.user.displayName || "Google User",
+                    email: userCredential.user.email || "",
+                    password: "google-auth-placeholder-password",
+                    role: "user"
+                });
+            }
+
+            saveUserLocal({
+                id: profile.id,
+                name: profile.name,
+                email: profile.email,
+                role: profile.role as "user" | "admin" | "pharmacist",
+            });
+
+            if (profile.role === "admin") {
+                router.push("/admin");
+            } else if (profile.role === "pharmacist") {
+                router.push("/pharmacist");
+            } else {
+                router.push("/chat");
+            }
+        } catch (err: any) {
+            let message = "Google Sign-In failed.";
+            if (err.message) {
+                message = err.message;
+            }
             setError(message);
         } finally {
             setLoading(false);
@@ -78,23 +142,45 @@ export default function LoginPage() {
                 </div>
 
                 <GlassCard>
-                    <h2 className="text-xl font-bold text-[var(--text-color)] mb-2 text-center">Select Role to Login</h2>
+                    <h2 className="text-xl font-bold text-[var(--text-color)] mb-4 text-center">Sign In</h2>
 
-                    {/* Role Selector Tabs */}
-                    <div className="flex gap-2 p-1 bg-white dark:bg-slate-800/50 rounded-lg mb-6 border border-white/5">
-                        {["user", "admin", "pharmacist"].map((role) => (
-                            <button
-                                key={role}
-                                type="button"
-                                onClick={() => handleRoleSelect(role)}
-                                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all capitalize ${selectedRole === role
-                                    ? "bg-indigo-600 text-[var(--text-color)] shadow-md shadow-indigo-900/20"
-                                    : "text-slate-600 dark:text-slate-400 hover:text-[var(--text-color)] hover:bg-black/5 dark:bg-white/5"
-                                    }`}
-                            >
-                                {role}
-                            </button>
-                        ))}
+                    {/* Role Dropdown Selector */}
+                    <div className="relative mb-6">
+                        <label className="block text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">
+                            Select Role
+                        </label>
+                        <button
+                            type="button"
+                            onClick={() => setDropdownOpen(!dropdownOpen)}
+                            className="w-full input-glass flex items-center justify-between py-2.5 px-4 rounded-lg capitalize border border-white/10 hover:border-indigo-500/50 transition-all text-left bg-slate-900/40 text-slate-200"
+                        >
+                            <span>{selectedRole}</span>
+                            <ChevronDown size={18} className={`transform transition-transform duration-300 ${dropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {dropdownOpen && (
+                            <>
+                                <div className="fixed inset-0 z-20" onClick={() => setDropdownOpen(false)} />
+                                <div className="absolute left-0 right-0 mt-2 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-30 transition-all animate-in fade-in slide-in-from-top-2 duration-300">
+                                    {["user", "admin", "pharmacist"].map((role) => (
+                                        <button
+                                            key={role}
+                                            type="button"
+                                            onClick={() => {
+                                                handleRoleSelect(role);
+                                                setDropdownOpen(false);
+                                            }}
+                                            className={`w-full text-left px-4 py-3 text-sm transition-colors capitalize ${selectedRole === role 
+                                                ? "bg-indigo-600 text-white font-medium" 
+                                                : "text-slate-300 hover:bg-white/5 hover:text-white"
+                                            }`}
+                                        >
+                                            {role}
+                                        </button>
+                                    ))}
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
@@ -145,6 +231,27 @@ export default function LoginPage() {
                             )}
                         </button>
                     </form>
+
+                    {/* Google Login Separator */}
+                    <div className="relative my-6 flex items-center justify-center">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-white/10"></div>
+                        </div>
+                        <span className="relative bg-transparent px-3 text-xs text-slate-500 uppercase tracking-wider font-semibold z-10">
+                            Or continue with
+                        </span>
+                    </div>
+
+                    {/* Google Sign In Button */}
+                    <button
+                        type="button"
+                        onClick={handleGoogleSignIn}
+                        disabled={loading}
+                        className="w-full flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 border border-white/15 hover:border-white/20 text-slate-200 py-3 rounded-xl transition-all duration-300 font-semibold shadow-md active:scale-[0.98]"
+                    >
+                        <Chrome size={18} className="text-indigo-400" />
+                        Sign in with Google
+                    </button>
 
                     {selectedRole !== "admin" && (
                         <p className="text-center text-slate-600 dark:text-slate-400 text-sm mt-6">

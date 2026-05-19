@@ -1,72 +1,31 @@
 """
-agents/tools.py — LangChain tool definitions for the Pharmacy Agent.
-
-Phase 1 tools:
-    - check_medicine_availability: retrieves medicine info incl. prescription_required
-    - create_pharmacy_order: prescription gate + stock gate (Phase 2: + expiry + verified Rx)
-    - get_order_history: retrieves user's recent orders
-
-Phase 2 NEW tools:
-    - verify_prescription_tool: checks if user has a pharmacist-verified prescription
-    - extract_medicine_from_image_tool: calls Vision Agent on an image path
-    - predict_refill_tool: runs Refill Agent for a user
-
-ENHANCED SAFETY LOGIC (Phase 2):
-    create_pharmacy_order now enforces THREE checks (was two):
-      1. EXPIRY CHECK: medicine.expiry_date must be today or in the future
-      2. PRESCRIPTION CHECK (Rx): if prescription_required=True →
-         check if user has verified prescription first;
-         if yes → allow; if no → block with upload request
-      3. STOCK CHECK: sufficient quantity must be in inventory
+agents/tools.py — LangChain tool definitions for the Pharmacy Agent using Firestore.
 """
 
 import json
 import logging
 from datetime import date
+from typing import Any
 from langchain_core.tools import tool
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
 # Shared DB session — set before each agent invocation
-# ---------------------------------------------------------------------------
 _db_session = None
 
 
 def set_db_session(db):
     """
     Set the database session for all tools to use.
-
-    Called by pharmacy_agent.py before invoking the agent executor.
-
-    Args:
-        db: SQLAlchemy Session object
     """
     global _db_session
     _db_session = db
 
 
-# ===========================================================================
-# TOOL 1: Check Medicine Availability  (Phase 1 — unchanged)
-# ===========================================================================
 @tool
 def check_medicine_availability(medicine_name: str) -> str:
     """
     Search for a medicine by name and return its availability details.
-
-    Use this tool FIRST when the user asks about any medicine to check:
-    - Whether it exists in our pharmacy inventory
-    - Current stock levels
-    - Price per unit
-    - Whether it requires a prescription (prescription_required)
-    - Expiry date (important for Phase 2 safety checks)
-
-    Args:
-        medicine_name: The name or partial name of the medicine to search for.
-                       Example: 'paracetamol', 'amoxicillin', 'cough syrup'
-
-    Returns:
-        JSON string with medicine details or error message.
     """
     from app.services.medicine_service import find_medicine_by_name
 
@@ -96,29 +55,10 @@ def check_medicine_availability(medicine_name: str) -> str:
     })
 
 
-# ===========================================================================
-# TOOL 2: Create Pharmacy Order  (Phase 2 — ENHANCED SAFETY)
-# ===========================================================================
 @tool
-def create_pharmacy_order(medicine_id: int, quantity: int, user_id: int) -> str:
+def create_pharmacy_order(medicine_id: str, quantity: int, user_id: str) -> str:
     """
     Create a pharmacy order for the specified medicine and quantity.
-
-    ENHANCED SAFETY RULES (Phase 2) — enforce in this order:
-    1. EXPIRY CHECK: if medicine.expiry_date < today → REJECT (never dispense expired medicine)
-    2. PRESCRIPTION CHECK: if prescription_required=True:
-       a. Call verify_prescription_tool(user_id, medicine_name) first
-       b. If user has a pharmacist-verified prescription → allow the order
-       c. If no verified prescription → REJECT and ask user to upload prescription
-    3. STOCK CHECK: if medicine.stock < quantity → REJECT
-
-    Args:
-        medicine_id: The integer ID of the medicine.
-        quantity: Number of units to order (must be >= 1).
-        user_id: The ID of the user placing the order.
-
-    Returns:
-        JSON string confirming order creation or explaining the block reason.
     """
     from app.services.medicine_service import get_medicine_by_id
     from app.services.order_service import create_order
@@ -134,13 +74,16 @@ def create_pharmacy_order(medicine_id: int, quantity: int, user_id: int) -> str:
     except Exception as e:
         return json.dumps({"error": f"Medicine not found: {str(e)}"})
 
-    # -----------------------------------------------------------------------
-    # SAFETY CHECK 1: EXPIRY DATE ENFORCEMENT (Phase 2)
-    # Never allow dispensing of expired medicines.
-    # -----------------------------------------------------------------------
     if medicine.expiry_date:
         today = date.today()
-        if medicine.expiry_date < today:
+        # Handle if expiry_date is a datetime or string or date
+        exp_date = medicine.expiry_date
+        if isinstance(exp_date, str):
+            exp_date = date.fromisoformat(exp_date)
+        elif hasattr(exp_date, 'date'):
+            exp_date = exp_date.date()
+            
+        if exp_date < today:
             logger.warning(
                 f"[Safety] Expired medicine: {medicine.name} expired on {medicine.expiry_date}"
             )
@@ -153,11 +96,6 @@ def create_pharmacy_order(medicine_id: int, quantity: int, user_id: int) -> str:
                 ),
             })
 
-    # -----------------------------------------------------------------------
-    # SAFETY CHECK 2: PRESCRIPTION ENFORCEMENT (Phase 2 upgraded)
-    # Phase 1: always reject Rx medicines
-    # Phase 2: check if user has a pharmacist-VERIFIED prescription first
-    # -----------------------------------------------------------------------
     if medicine.prescription_required:
         has_rx = has_verified_prescription_for_medicine(
             _db_session, user_id, medicine.name
@@ -180,9 +118,6 @@ def create_pharmacy_order(medicine_id: int, quantity: int, user_id: int) -> str:
                 f"[Safety] Verified prescription found for user={user_id} — allowing Rx order"
             )
 
-    # -----------------------------------------------------------------------
-    # SAFETY CHECK 3: STOCK AVAILABILITY
-    # -----------------------------------------------------------------------
     if medicine.stock < quantity:
         return json.dumps({
             "success": False,
@@ -193,9 +128,6 @@ def create_pharmacy_order(medicine_id: int, quantity: int, user_id: int) -> str:
             ),
         })
 
-    # -----------------------------------------------------------------------
-    # All safety checks passed — create order
-    # -----------------------------------------------------------------------
     try:
         order = create_order(_db_session, user_id, medicine_id, quantity)
         return json.dumps({
@@ -217,21 +149,10 @@ def create_pharmacy_order(medicine_id: int, quantity: int, user_id: int) -> str:
         return json.dumps({"success": False, "action": "error", "message": str(e)})
 
 
-# ===========================================================================
-# TOOL 3: Get Order History  (Phase 1 — unchanged)
-# ===========================================================================
 @tool
-def get_order_history(user_id: int) -> str:
+def get_order_history(user_id: str) -> str:
     """
-    Retrieve the recent order history for a user.
-
-    Use when the user asks 'what did I order?' or 'show my orders'.
-
-    Args:
-        user_id: The ID of the user whose orders to retrieve.
-
-    Returns:
-        JSON string with list of recent orders (last 5).
+    Retrieve the recent order history for a user (last 5 orders).
     """
     from app.services.order_service import get_user_orders
 
@@ -256,23 +177,10 @@ def get_order_history(user_id: int) -> str:
     return json.dumps({"count": len(order_list), "orders": order_list})
 
 
-# ===========================================================================
-# TOOL 4: Verify Prescription  (Phase 2 NEW)
-# ===========================================================================
 @tool
-def verify_prescription_tool(user_id: int, medicine_name: str) -> str:
+def verify_prescription_tool(user_id: str, medicine_name: str) -> str:
     """
     Check whether a user has a pharmacist-verified prescription for a medicine.
-
-    Use this tool BEFORE attempting to create an order for any Rx medicine.
-    Do not assume the user has or doesn't have a prescription — always check.
-
-    Args:
-        user_id: The user's ID.
-        medicine_name: Name of the Rx medicine being checked.
-
-    Returns:
-        JSON with has_prescription (bool) and a status message.
     """
     from app.services.prescription_service import has_verified_prescription_for_medicine
 
@@ -293,25 +201,10 @@ def verify_prescription_tool(user_id: int, medicine_name: str) -> str:
     })
 
 
-# ===========================================================================
-# TOOL 5: Extract Medicine from Image  (Phase 2 NEW)
-# ===========================================================================
 @tool
 def extract_medicine_from_image_tool(image_path: str) -> str:
     """
     Use the Vision Agent to extract medicine information from a prescription image.
-
-    Use this tool when the user says they have a prescription image they'd
-    like to upload, or when you need to process a prescription image path.
-
-    NOTE: This tool is for the agent to call after an image has already
-    been uploaded and saved to disk. The image_path must be a valid file path.
-
-    Args:
-        image_path: Absolute path to a prescription image file.
-
-    Returns:
-        JSON with extracted medicine_name, dosage, quantity, and confidence.
     """
     import asyncio
     from app.agents.vision_agent import get_vision_agent
@@ -320,7 +213,6 @@ def extract_medicine_from_image_tool(image_path: str) -> str:
 
     try:
         vision_agent = get_vision_agent()
-        # Run async function synchronously inside tool
         loop = asyncio.new_event_loop()
         result = loop.run_until_complete(vision_agent.extract(image_path))
         loop.close()
@@ -329,24 +221,10 @@ def extract_medicine_from_image_tool(image_path: str) -> str:
         return json.dumps({"success": False, "error": str(e)})
 
 
-# ===========================================================================
-# TOOL 6: Predict Refill  (Phase 2 NEW)
-# ===========================================================================
 @tool
-def predict_refill_tool(user_id: int) -> str:
+def predict_refill_tool(user_id: str) -> str:
     """
     Trigger the Refill Prediction Agent for a user.
-
-    Analyzes the user's order history and creates refill alerts for medicines
-    they are likely to run out of soon (within 7 days).
-
-    Use when the user asks about refills, or proactively after an order.
-
-    Args:
-        user_id: The user ID to run prediction for.
-
-    Returns:
-        JSON with alerts_created, alerts_updated, and a message.
     """
     import asyncio
     from app.agents.refill_agent import get_refill_agent
@@ -370,14 +248,11 @@ def predict_refill_tool(user_id: int) -> str:
         return json.dumps({"success": False, "error": str(e)})
 
 
-# ===========================================================================
-# Tool Registry
-# ===========================================================================
 PHARMACY_TOOLS = [
     check_medicine_availability,
     create_pharmacy_order,
     get_order_history,
-    verify_prescription_tool,        # Phase 2
-    extract_medicine_from_image_tool, # Phase 2
-    predict_refill_tool,             # Phase 2
+    verify_prescription_tool,
+    extract_medicine_from_image_tool,
+    predict_refill_tool,
 ]

@@ -13,7 +13,7 @@ class MedicineResponse(BaseModel):
 
     Includes prescription_required which drives agent safety logic.
     """
-    id: int
+    id: str
     name: str
     stock: int
     unit: str

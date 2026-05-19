@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import "@/styles/design-system.css";
 import Layout from "@/components/layout/Layout";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import Background from "@/components/Background";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -21,7 +23,13 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-          <Layout>{children}</Layout>
+          {/* Fixed animated background — behind everything at z-index: 0 */}
+          <Background />
+
+          {/* All page content sits above the background */}
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <Layout>{children}</Layout>
+          </div>
         </ThemeProvider>
       </body>
     </html>

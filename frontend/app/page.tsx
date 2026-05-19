@@ -26,7 +26,7 @@ export default function LandingPage() {
     <div className="min-h-screen text-[var(--text-color)] selection:bg-indigo-500/30">
       
       {/* --- Sticky Navigation --- */}
-      <nav className="navbar sticky top-0 z-[100] border-b border-white/5 bg-[#0f0c29]/80 backdrop-blur-xl">
+      <nav className="navbar sticky top-0 z-[100]">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-lg shadow-lg shadow-indigo-500/20">

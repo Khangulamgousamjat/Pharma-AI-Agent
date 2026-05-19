@@ -1,6 +1,6 @@
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
-from sqlalchemy.orm import Session
+from typing import Any
 from app.services.order_service import get_all_orders, get_user_orders
 from app.services.medicine_service import get_all_medicines
 from tempfile import NamedTemporaryFile
@@ -30,8 +30,8 @@ def _save_wb(wb) -> str:
     return temp_file.name
 
 
-def export_orders_to_excel(db: Session) -> str:
-    """Exports all orders (admin) to an Excel file."""
+def export_orders_to_excel(db: Any) -> str:
+    """Exports all orders (admin) to an Excel file from Firestore."""
     orders = get_all_orders(db)
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -56,9 +56,14 @@ def export_orders_to_excel(db: Session) -> str:
     return _save_wb(wb)
 
 
-def export_user_orders_to_excel(db: Session, user_id: int) -> str:
-    """Exports orders for a specific user to an Excel file."""
+def export_user_orders_to_excel(db: Any, user_id: str) -> str:
+    """Exports orders for a specific user to an Excel file from Firestore."""
     orders = get_user_orders(db, user_id)
+    
+    # Load medicine names for lookup
+    medicines = get_all_medicines(db)
+    med_names = {med.id: med.name for med in medicines}
+
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "My Orders"
@@ -68,7 +73,7 @@ def export_user_orders_to_excel(db: Session, user_id: int) -> str:
     _style_header_row(ws, len(headers))
 
     for order in orders:
-        med_name = order.medicine.name if order.medicine else f"Medicine #{order.medicine_id}"
+        med_name = med_names.get(order.medicine_id, f"Medicine #{order.medicine_id}")
         ws.append([
             order.id,
             med_name,
@@ -82,8 +87,8 @@ def export_user_orders_to_excel(db: Session, user_id: int) -> str:
     return _save_wb(wb)
 
 
-def export_inventory_to_excel(db: Session) -> str:
-    """Exports the full medicine inventory to an Excel file."""
+def export_inventory_to_excel(db: Any) -> str:
+    """Exports the full medicine inventory to an Excel file from Firestore."""
     medicines = get_all_medicines(db)
     wb = openpyxl.Workbook()
     ws = wb.active

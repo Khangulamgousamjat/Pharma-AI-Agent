@@ -12,7 +12,7 @@
  * @module api
  */
 
-import { authHeader } from "./auth";
+import { authHeader, getToken } from "./auth";
 
 /** Base URL loaded from environment variable */
 export const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -92,7 +92,7 @@ export interface AuthResponse {
     access_token: string;
     token_type: string;
     user: {
-        id: number;
+        id: string;
         name: string;
         email: string;
         role: string;
@@ -101,29 +101,27 @@ export interface AuthResponse {
 }
 
 /**
- * Register a new user account.
- * Automatically logs the user in (returns JWT).
+ * Register a new user profile on the backend.
+ * (Actual Firebase Auth creation happens before this in the UI).
  *
- * @param data - Registration info (name, email, password)
- * @returns Auth response with JWT token and user object
+ * @param data - Registration info (name, email, password, role)
+ * @returns User profile response
  */
-export async function registerUser(data: RegisterData): Promise<AuthResponse> {
-    return apiFetch<AuthResponse>("/auth/register", {
+export async function registerUser(data: RegisterData & { role: string }): Promise<AuthResponse["user"]> {
+    return apiFetch<AuthResponse["user"]>("/auth/register", {
         method: "POST",
         body: JSON.stringify(data),
     });
 }
 
 /**
- * Log in an existing user.
- *
- * @param data - Login credentials (email, password)
- * @returns Auth response with JWT token and user object
+ * Fetch current user profile from backend (useful to get roles after Firebase login).
  */
-export async function loginUser(data: LoginData): Promise<AuthResponse> {
-    return apiFetch<AuthResponse>("/auth/login", {
-        method: "POST",
-        body: JSON.stringify(data),
+export async function fetchMyProfile(customToken?: string): Promise<AuthResponse["user"]> {
+    const token = customToken || getToken();
+    if (!token) throw new Error("No auth token");
+    return apiFetch<AuthResponse["user"]>("/auth/me", {
+        headers: { Authorization: `Bearer ${token}` }
     });
 }
 
@@ -141,7 +139,7 @@ export async function getPendingPharmacists(): Promise<AuthResponse["user"][]> {
  * Approve a pharmacist account.
  * Admin role required.
  */
-export async function approvePharmacist(userId: number): Promise<{ message: string }> {
+export async function approvePharmacist(userId: string): Promise<{ message: string }> {
     return apiFetch<{ message: string }>(`/admin/pharmacists/${userId}/approve`, {
         method: "POST",
         headers: authHeader(),
@@ -153,7 +151,7 @@ export async function approvePharmacist(userId: number): Promise<{ message: stri
 // ---------------------------------------------------------------------------
 
 export interface Medicine {
-    id: number;
+    id: string;
     name: string;
     stock: number;
     unit: string;
@@ -188,7 +186,7 @@ export async function searchMedicines(query: string): Promise<Medicine[]> {
  * @param id - Medicine primary key
  * @returns Medicine record
  */
-export async function getMedicineById(id: number): Promise<Medicine> {
+export async function getMedicineById(id: string): Promise<Medicine> {
     return apiFetch<Medicine>(`/medicines/${id}`);
 }
 
@@ -197,9 +195,9 @@ export async function getMedicineById(id: number): Promise<Medicine> {
 // ---------------------------------------------------------------------------
 
 export interface Order {
-    id: number;
-    user_id: number;
-    medicine_id: number;
+    id: string;
+    user_id: string;
+    medicine_id: string;
     quantity: number;
     total_price: number;
     status: string;
@@ -214,7 +212,7 @@ export interface Order {
  * @param quantity - Number of units
  * @returns Created order record
  */
-export async function createOrder(medicine_id: number, quantity: number): Promise<Order> {
+export async function createOrder(medicine_id: string, quantity: number): Promise<Order> {
     return apiFetch<Order>("/orders/create", {
         method: "POST",
         headers: authHeader(),
@@ -228,7 +226,7 @@ export async function createOrder(medicine_id: number, quantity: number): Promis
  * @param userId - User ID
  * @returns List of orders
  */
-export async function getUserOrders(userId: number): Promise<Order[]> {
+export async function getUserOrders(userId: string): Promise<Order[]> {
     return apiFetch<Order[]>(`/orders/user/${userId}`, {
         headers: authHeader(),
     });
@@ -252,7 +250,7 @@ export async function getAllOrders(): Promise<Order[]> {
 export interface AgentChatResponse {
     response: string;
     action: string | null;
-    order_id: number | null;
+    order_id: string | null;
     trace_url: string | null;
 }
 
@@ -267,11 +265,11 @@ export interface AgentChatResponse {
  * @returns Agent response with action type and optional order ID
  */
 export async function sendAgentMessage(
-    userId: number,
+    userId: string,
     message: string
 ): Promise<AgentChatResponse> {
     const body = {
-        user_id: Number(userId),
+        user_id: String(userId),
         message: String(message ?? ""),
     };
     return apiFetch<AgentChatResponse>("/agent/chat", {
@@ -289,7 +287,7 @@ export interface PaymentResponse {
     status: string;
     transaction_id: string;
     message: string;
-    order_id: number;
+    order_id: string;
 }
 
 /**
@@ -301,7 +299,7 @@ export interface PaymentResponse {
  * @returns Payment result with transaction ID
  */
 export async function processPayment(
-    orderId: number,
+    orderId: string,
     amount: number,
     paymentMethod: string = "card"
 ): Promise<PaymentResponse> {
@@ -336,7 +334,7 @@ export async function checkHealth(): Promise<{ status: string }> {
 export interface VoiceMessageResponse {
     response_text: string;
     action: string | null;
-    order_id: number | null;
+    order_id: string | null;
     tts_url: string | null;
     language: string;
     input_mode: string;
@@ -350,7 +348,7 @@ export interface VoiceMessageResponse {
  * @param language - ISO language code (en/hi/mr)
  */
 export async function sendVoiceMessage(
-    userId: number,
+    userId: string,
     transcript: string,
     language: string = "en"
 ): Promise<VoiceMessageResponse> {
@@ -367,7 +365,7 @@ export async function sendVoiceMessage(
 
 /** A medicine suggested by the symptom agent */
 export interface SuggestedMedicine {
-    id: number;
+    id: string;
     name: string;
     unit: string;
     price: number;
@@ -397,7 +395,7 @@ export interface SymptomCheckResponse {
  * @param language - ISO language code
  */
 export async function startSymptomCheck(
-    userId: number,
+    userId: string,
     symptom: string,
     language: string = "en"
 ): Promise<SymptomCheckResponse> {
@@ -440,8 +438,8 @@ export interface AnalyticsOverview {
 }
 
 export interface WebhookEvent {
-    id: number;
-    order_id: number;
+    id: string;
+    order_id: string;
     attempt_number: number;
     status: string;
     http_status_code: number | null;
@@ -456,7 +454,7 @@ export async function getAnalyticsOverview(): Promise<AnalyticsOverview> {
 
 /** Top medicine entry from /analytics/medicines */
 export interface TopMedicine {
-    medicine_id: number;
+    medicine_id: string;
     medicine_name: string;
     total_quantity: number;
     total_orders: number;
@@ -501,7 +499,7 @@ export async function getAnalyticsFulfillment(): Promise<{
  *
  * @param orderId - Order ID to retry
  */
-export async function retriggerWebhook(orderId: number): Promise<{ success: boolean; message: string }> {
+export async function retriggerWebhook(orderId: string): Promise<{ success: boolean; message: string }> {
     return apiFetch<{ success: boolean; message: string }>(`/webhook/retrigger/${orderId}`, {
         method: "POST",
         headers: authHeader() as Record<string, string>,
@@ -524,7 +522,7 @@ export interface UserPreferences {
  * @param preferences - New preference values
  */
 export async function updatePreferences(
-    userId: number,
+    userId: string,
     preferences: UserPreferences
 ): Promise<UserPreferences> {
     return apiFetch<UserPreferences>(
@@ -542,7 +540,7 @@ export async function updatePreferences(
  *
  * @param userId - User ID
  */
-export async function getPreferences(userId: number): Promise<UserPreferences> {
+export async function getPreferences(userId: string): Promise<UserPreferences> {
     return apiFetch<UserPreferences>(`/settings/preferences?user_id=${userId}`);
 }
 
@@ -560,18 +558,18 @@ export interface ExtractedMedicine {
 }
 
 export interface Prescription {
-    id: number;
-    user_id: number;
+    id: string;
+    user_id: string;
     image_url: string;
     extracted_text: string | null;
     extracted_medicine: string | null; // JSON string
     verified: boolean;
-    verified_by: number | null;
+    verified_by: string | null;
     created_at: string | null;
 }
 
 export interface PrescriptionUploadResponse {
-    prescription_id: number;
+    prescription_id: string;
     message: string;
     extracted: ExtractedMedicine;
     verified: boolean;
@@ -588,7 +586,7 @@ export interface PrescriptionUploadResponse {
  * @returns Upload response with extracted medicine info
  */
 export async function uploadPrescription(
-    userId: number,
+    userId: string,
     file: File
 ): Promise<PrescriptionUploadResponse> {
     const formData = new FormData();

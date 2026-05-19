@@ -1,16 +1,10 @@
 """
-agents/pharmacy_agent.py — Core LangGraph ReAct Agent for PharmaAgent AI.
-
-Architecture:
-    - LLM: Google Gemini 2.0 Flash via langchain_google_genai
-    - Framework: LangGraph prebuilt create_react_agent
-    - Tools: check_medicine_availability, create_pharmacy_order, get_order_history
-    - Observability: LangSmith tracing
+agents/pharmacy_agent.py — Core LangGraph ReAct Agent for PharmaAgent AI using Firestore.
 """
 
 import os
 import logging
-from typing import Optional
+from typing import Optional, Any
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.prebuilt import create_react_agent
@@ -24,7 +18,6 @@ logger = logging.getLogger(__name__)
 os.environ["LANGCHAIN_TRACING_V2"] = settings.langchain_tracing_v2
 os.environ["LANGCHAIN_API_KEY"] = settings.langchain_api_key
 os.environ["LANGCHAIN_PROJECT"] = settings.langchain_project
-
 
 PHARMACY_SYSTEM_TEMPLATE = """You are PharmaBot, an intelligent and helpful AI pharmacist assistant for PharmaAgent AI pharmacy.
 
@@ -46,7 +39,7 @@ User ID for this session: {user_id}
 
 class PharmacyAgent:
     """
-    PharmaAgent AI — LangGraph-powered pharmacy assistant.
+    PharmaAgent AI — LangGraph-powered pharmacy assistant using Firestore.
     """
 
     def __init__(self):
@@ -68,9 +61,9 @@ class PharmacyAgent:
 
     async def chat(
         self,
-        user_id: int,
+        user_id: str,
         message: str,
-        db,
+        db: Any,
     ) -> dict:
         """
         Process a user message through the pharmacy agent.
@@ -89,7 +82,7 @@ class PharmacyAgent:
 
             messages = result.get("messages", [])
             raw_content = messages[-1].content if messages else "I'm sorry, I couldn't process your request."
-            # LangChain AIMessage.content can be str or list (multimodal); ensure we always return str
+            
             if isinstance(raw_content, list):
                 parts = [
                     c.get("text", "") if isinstance(c, dict) else str(c)
@@ -99,7 +92,6 @@ class PharmacyAgent:
             else:
                 final_message = str(raw_content) if raw_content else "I'm sorry, I couldn't process your request."
             
-            # Analyze tool calls to find the action
             action = "info"
             order_id = None
             
@@ -108,10 +100,7 @@ class PharmacyAgent:
                     for tc in msg.tool_calls:
                         if tc["name"] == "create_pharmacy_order":
                             action = "order_created"
-                            # Order ID needs extraction from tool output, but simplify for now
-                            # by parsing the final message or looking at next tool message
             
-            # Look at ToolMessages to find the order_id if order_created
             for msg in messages:
                 if msg.type == "tool" and msg.name == "create_pharmacy_order":
                     import json
@@ -126,15 +115,6 @@ class PharmacyAgent:
                             action = "out_of_stock"
                         else:
                             action = "error"
-                    except Exception:
-                        pass
-                
-                # If they called check_availability and it returned prescription_required
-                if msg.type == "tool" and msg.name == "check_medicine_availability":
-                    try:
-                        obs = json.loads(msg.content)
-                        # If the agent didn't try to order later, we might just be informing.
-                        # But we keep it as 'info' unless they tried to order.
                     except Exception:
                         pass
 
@@ -158,6 +138,7 @@ class PharmacyAgent:
 
 
 pharmacy_agent: Optional[PharmacyAgent] = None
+
 
 def get_pharmacy_agent() -> PharmacyAgent:
     global pharmacy_agent

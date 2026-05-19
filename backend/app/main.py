@@ -22,7 +22,7 @@ import logging
 import os
 
 from app.config import settings
-from app.database import init_db, SessionLocal
+from app.firebase_db import init_firebase, get_db
 from app.routes import auth, medicines, orders, agent, payment
 
 # Phase 2 routers
@@ -48,9 +48,9 @@ async def lifespan(app: FastAPI):
     Manage application startup and shutdown events.
 
     On startup:
-    - Initialize database tables (create if not exist)
+    - Initialize Firebase
     - Seed medicine inventory with sample data
-    - Create default admin user
+    - Create default admin, pharmacist, and demo users
 
     On shutdown:
     - Clean up resources (if needed)
@@ -58,18 +58,19 @@ async def lifespan(app: FastAPI):
     # STARTUP
     logger.info("🚀 PharmaAgent AI Backend starting up...")
 
-    # Initialize DB tables
-    init_db()
+    # Initialize Firebase
+    init_firebase()
 
     # Seed initial data
     from app.utils.seed_data import seed_medicines, seed_admin_user, seed_pharmacist_user, seed_demo_user
-    db = SessionLocal()
+    db = get_db()
     try:
         seed_medicines(db)
         seed_admin_user(db)
-        seed_pharmacist_user(db)  # Phase 2: adds pharmacist account
-    finally:
-        db.close()
+        seed_pharmacist_user(db)
+        seed_demo_user(db)
+    except Exception as e:
+        logger.error(f"Error during Firebase seeding: {e}")
 
     # Files are now securely uploaded to Supabase Storage, bypassing local saves.
     logger.info("Cloud storage configuration initialized.")

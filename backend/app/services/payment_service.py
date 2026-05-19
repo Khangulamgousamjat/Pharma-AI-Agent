@@ -1,13 +1,10 @@
 """
-services/payment_service.py — Dummy payment simulation for Phase 1.
-
-In Phase 2, replace this with a real payment gateway integration
-(Stripe, Razorpay, etc.). For now, all payments succeed immediately.
+services/payment_service.py — Dummy payment simulation using Firestore.
 """
 
 import uuid
 import logging
-from sqlalchemy.orm import Session
+from typing import Any
 
 from app.models.order import Order
 from app.models.user import User
@@ -16,30 +13,15 @@ from app.schemas.agent import PaymentRequest, PaymentResponse
 logger = logging.getLogger(__name__)
 
 
-def process_payment(db: Session, request: PaymentRequest) -> PaymentResponse:
+def process_payment(db: Any, request: PaymentRequest) -> PaymentResponse:
     """
-    Process a payment for an order (dummy implementation).
-
-    Simulates payment success by:
-    1. Generating a fake transaction ID
-    2. Updating order status to 'paid'
-    3. Returning a success response
-
-    Args:
-        db: Database session
-        request: Payment request (order_id, amount, payment_method)
-
-    Returns:
-        PaymentResponse: Success response with transaction ID
-
-    Raises:
-        HTTPException 404: If the order is not found
+    Process a payment for an order (dummy implementation) in Firestore.
     """
     from fastapi import HTTPException, status
 
-    # Fetch the order to update its status
-    order = db.query(Order).filter(Order.id == request.order_id).first()
-    if not order:
+    order_doc_ref = db.collection("orders").document(request.order_id)
+    order_doc = order_doc_ref.get()
+    if not order_doc.exists:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Order id={request.order_id} not found.",
@@ -49,8 +31,8 @@ def process_payment(db: Session, request: PaymentRequest) -> PaymentResponse:
     transaction_id = f"TXN-{uuid.uuid4().hex[:12].upper()}"
 
     # Update order status to paid
-    order.status = "paid"
-    db.commit()
+    order_doc_ref.update({"status": "paid"})
+    order_data = order_doc.to_dict()
 
     logger.info(
         f"Payment processed: order={request.order_id} "
@@ -59,10 +41,13 @@ def process_payment(db: Session, request: PaymentRequest) -> PaymentResponse:
     )
 
     from app.agents.notification_agent import NotificationAgent
-    user = db.query(User).filter(User.id == order.user_id).first()
-    if user and user.email:
-        agent = NotificationAgent()
-        agent.send_order_confirmation(user.email, order.id, order.total_price)
+    user_doc = db.collection("users").document(order_data.get("user_id")).get()
+    if user_doc.exists:
+        user_data = user_doc.to_dict()
+        email = user_data.get("email")
+        if email:
+            agent = NotificationAgent()
+            agent.send_order_confirmation(email, request.order_id, order_data.get("total_price", 0.0))
 
     return PaymentResponse(
         status="success",

@@ -108,7 +108,7 @@ export default function SettingsPage() {
                 </GlassCard>
 
                 {/* Privacy note */}
-                <GlassCard hover={false} className="bg-white dark:bg-slate-800/30">
+                <GlassCard hover={false}>
                     <h2 className="text-[var(--text-color)] font-semibold mb-3">🔒 Privacy & Data</h2>
                     <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
                         <li>• <strong className="text-slate-700 dark:text-slate-300">Voice input:</strong> Processed locally in your browser — audio never sent to servers</li>

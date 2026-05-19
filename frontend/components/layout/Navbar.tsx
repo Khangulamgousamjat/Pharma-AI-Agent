@@ -8,19 +8,19 @@ import { useTheme } from "next-themes";
 import { Sun, Moon, LogOut } from "lucide-react";
 
 const PAGE_TITLES: Record<string, string> = {
-    "/": "Home",
-    "/dashboard": "Dashboard",
-    "/chat": "Chat",
-    "/admin": "Admin",
-    "/analytics": "Analytics",
-    "/voice": "Voice",
-    "/vision": "Vision",
-    "/symptom": "Symptom Checker",
-    "/settings": "Settings",
-    "/pharmacist": "Pharmacist",
-    "/register": "Register",
-    "/login": "Login",
-    "/refill-alerts": "Refill Alerts",
+    "/":             "Home",
+    "/dashboard":    "Dashboard",
+    "/chat":         "Chat",
+    "/admin":        "Admin",
+    "/analytics":    "Analytics",
+    "/voice":        "Voice",
+    "/vision":       "Vision",
+    "/symptom":      "Symptom Checker",
+    "/settings":     "Settings",
+    "/pharmacist":   "Pharmacist",
+    "/register":     "Register",
+    "/login":        "Login",
+    "/refill-alerts":"Refill Alerts",
 };
 
 export default function Navbar() {
@@ -32,36 +32,77 @@ export default function Navbar() {
 
     useEffect(() => {
         setMounted(true);
-        setTimeout(() => {
-            setUser(getUser());
-        }, 0);
+        setTimeout(() => { setUser(getUser()); }, 0);
     }, []);
 
-    const handleLogout = () => {
-        clearAuth();
+    const handleLogout = async () => {
+        await clearAuth();
         router.push("/login");
     };
 
-    const pageTitle = PAGE_TITLES[pathname] ?? pathname.slice(1).charAt(0).toUpperCase() + pathname.slice(2);
+    const pageTitle =
+        PAGE_TITLES[pathname] ??
+        pathname.slice(1).charAt(0).toUpperCase() + pathname.slice(2);
 
     return (
-        <header className="sticky top-0 z-50 bg-[var(--glass-bg)] backdrop-blur-xl border-b border-[var(--glass-border)] flex items-center justify-between px-4 h-16 md:px-6">
+        <header
+            className="sticky top-0 z-50 flex items-center justify-between px-4 h-16 md:px-6"
+            style={{
+                /* Glass navbar */
+                background: "var(--glass-light-bg)",
+                backdropFilter: "var(--glass-light-blur)",
+                WebkitBackdropFilter: "var(--glass-light-blur)",
+                borderBottom: "1px solid rgba(167,139,250,0.18)",
+                boxShadow:
+                    "inset 0 1px 0 rgba(255,255,255,0.55), 0 4px 24px rgba(124,58,237,0.07)",
+            }}
+        >
+            {/* Bottom-edge inner highlight (like glass catching ceiling light) */}
+            <div
+                aria-hidden
+                style={{
+                    position: "absolute",
+                    bottom: 0, left: 0, right: 0,
+                    height: 1,
+                    background:
+                        "linear-gradient(90deg, transparent 0%, rgba(167,139,250,0.3) 40%, rgba(167,139,250,0.3) 60%, transparent 100%)",
+                    pointerEvents: "none",
+                }}
+            />
+
+            {/* Left — page title / mobile logo */}
             <div className="flex items-center gap-3">
                 <div className="md:hidden flex items-center">
-                    <Link href="/dashboard" className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-lg shadow-lg">
+                    <Link
+                        href="/dashboard"
+                        className="w-8 h-8 rounded-xl flex items-center justify-center text-lg shadow-lg"
+                        style={{
+                            background: "linear-gradient(135deg, var(--color-primary), #9333ea)",
+                            boxShadow: "0 4px 12px rgba(124,58,237,0.4), inset 0 1px 0 rgba(255,255,255,0.3)",
+                        }}
+                    >
                         💊
                     </Link>
                 </div>
-                <h1 className="text-[var(--text-color)] font-semibold hidden md:block">
+                <h1
+                    className="font-semibold hidden md:block text-base"
+                    style={{ color: "var(--text-primary-light)" }}
+                >
                     {pageTitle}
                 </h1>
             </div>
 
+            {/* Right — theme toggle + user */}
             <div className="flex items-center gap-2">
                 {mounted && (
                     <button
                         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                        className="p-2 rounded-full bg-black/5 dark:bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-black/10 dark:bg-white/10 text-[var(--text-color)] transition-colors"
+                        className="p-2 rounded-full transition-all duration-200"
+                        style={{
+                            background: "rgba(124,58,237,0.08)",
+                            border: "1px solid rgba(167,139,250,0.2)",
+                            color: "var(--color-primary)",
+                        }}
                         aria-label="Toggle theme"
                     >
                         {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
@@ -71,15 +112,36 @@ export default function Navbar() {
                 {user && (
                     <div className="flex items-center gap-2">
                         <div className="text-right hidden sm:block">
-                            <p className="text-sm font-medium text-[var(--text-color)] leading-tight">{user.name}</p>
-                            <p className="text-xs text-slate-600 dark:text-slate-400 capitalize leading-tight">{user.role}</p>
+                            <p
+                                className="text-sm font-medium leading-tight"
+                                style={{ color: "var(--text-primary-light)" }}
+                            >
+                                {user.name}
+                            </p>
+                            <p
+                                className="text-xs capitalize leading-tight font-semibold"
+                                style={{ color: "var(--color-primary-light)" }}
+                            >
+                                {user.role}
+                            </p>
                         </div>
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-sm font-bold text-[var(--text-color)] shadow-md">
+                        <div
+                            className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-md"
+                            style={{
+                                background: "linear-gradient(135deg, var(--color-primary), #9333ea)",
+                                boxShadow: "0 3px 10px rgba(124,58,237,0.4), inset 0 1px 0 rgba(255,255,255,0.3)",
+                            }}
+                        >
                             {user.name.charAt(0).toUpperCase()}
                         </div>
                         <button
                             onClick={handleLogout}
-                            className="p-2 rounded-full bg-black/5 dark:bg-black/5 dark:bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-[var(--text-color)] transition-colors md:hidden"
+                            className="p-2 rounded-full transition-all duration-200 md:hidden"
+                            style={{
+                                background: "rgba(239,68,68,0.08)",
+                                border: "1px solid rgba(239,68,68,0.15)",
+                                color: "#f87171",
+                            }}
                             aria-label="Logout"
                         >
                             <LogOut size={18} />

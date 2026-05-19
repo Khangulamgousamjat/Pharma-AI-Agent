@@ -29,14 +29,16 @@ class UserResponse(BaseModel):
 
     Excludes sensitive fields like password_hash.
     """
-    id: int
+    id: str
     name: str
     email: str
     role: str
+    ui_theme: Optional[str] = "dark"
+    preferred_language: Optional[str] = "en"
     created_at: Optional[datetime] = None
 
     class Config:
-        from_attributes = True  # Allows creating from SQLAlchemy model instances
+        from_attributes = True  # Allows creating from dicts/models
 
 
 class TokenResponse(BaseModel):
