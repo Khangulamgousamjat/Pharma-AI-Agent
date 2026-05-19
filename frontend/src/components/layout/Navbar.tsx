@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getUser, clearAuth, type User } from "@/lib/auth";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/ThemeProvider";
 import { Sun, Moon, LogOut } from "lucide-react";
 import GlassPanel from "@/components/GlassPanel";
 
