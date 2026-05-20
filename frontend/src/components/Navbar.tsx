@@ -12,7 +12,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getUser, clearAuth, type User } from "@/lib/auth";
-import { Plus } from "lucide-react";
+import MedicalCrossLogo from "@/components/MedicalCrossLogo";
 
 export default function Navbar() {
     const pathname = usePathname();
@@ -67,9 +67,7 @@ export default function Navbar() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
                 {/* Brand Logo */}
                 <Link href="/dashboard" className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white">
-                        <Plus size={16} className="stroke-[3.5]" />
-                    </div>
+                    <MedicalCrossLogo size={30} variant="teal" />
                     <span className="font-bold text-lg gradient-text hidden sm:block">
                         PharmaAgent AI
                     </span>

@@ -3,7 +3,8 @@
 import { useState, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ChevronDown, Chrome, Eye, EyeOff, Plus } from "lucide-react";
+import { ArrowLeft, ChevronDown, Chrome, Eye, EyeOff } from "lucide-react";
+import MedicalCrossLogo from "@/components/MedicalCrossLogo";
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { fetchMyProfile, registerUser } from "@/lib/api";
@@ -135,9 +136,7 @@ export default function LoginPage() {
                 </div>
 
                 <div className="text-center mb-6">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-3xl mb-4 shadow-lg text-white">
-                        <Plus size={32} className="stroke-[3.5]" />
-                    </div>
+                    <MedicalCrossLogo size={64} variant="teal" />
                     <h1 className="text-3xl font-bold gradient-text">PharmaAgent AI</h1>
                     <p className="text-slate-600 dark:text-slate-400 mt-2 text-sm">Your AI-powered pharmacy assistant</p>
                 </div>
