@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { registerUser, fetchMyProfile } from "@/lib/api";
 import { saveUserLocal } from "@/lib/auth";
-import GlassCard from "@/components/GlassCard";
-import { ChevronDown, Chrome } from "lucide-react";
+import GlassPanel from "@/components/GlassPanel";
+import { ChevronDown, Chrome, Eye, EyeOff } from "lucide-react";
 
 import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -18,6 +18,7 @@ export default function RegisterPage() {
     const [error, setError] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
@@ -129,7 +130,7 @@ export default function RegisterPage() {
                     <p className="text-slate-600 dark:text-slate-400 mt-2 text-sm">Create your pharmacy account</p>
                 </div>
 
-                <GlassCard>
+                <GlassPanel variant="modal">
                     <h2 className="text-xl font-bold text-[var(--text-color)] mb-4 text-center">Create Account</h2>
 
                     {/* Role Dropdown Selector */}
@@ -200,15 +201,24 @@ export default function RegisterPage() {
 
                         <div>
                             <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1.5" htmlFor="password">Password</label>
-                            <input
-                                id="password"
-                                type="password"
-                                required
-                                placeholder="Min 6 characters"
-                                className="input-glass"
-                                value={form.password}
-                                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                            />
+                            <div className="relative">
+                                <input
+                                    id="password"
+                                    type={showPassword ? "text" : "password"}
+                                    required
+                                    placeholder="Min 6 characters"
+                                    className="input-glass w-full pr-10"
+                                    value={form.password}
+                                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
                         </div>
 
                         {error && (
@@ -260,7 +270,7 @@ export default function RegisterPage() {
                             Sign in
                         </Link>
                     </p>
-                </GlassCard>
+                </GlassPanel>
             </div>
         </div>
     );

@@ -3,7 +3,7 @@
 import { useState, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ChevronDown, Chrome } from "lucide-react";
+import { ArrowLeft, ChevronDown, Chrome, Eye, EyeOff } from "lucide-react";
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { fetchMyProfile, registerUser } from "@/lib/api";
@@ -17,6 +17,7 @@ export default function LoginPage() {
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleRoleSelect = (role: string) => {
         setSelectedRole(role);
@@ -203,15 +204,24 @@ export default function LoginPage() {
                             <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1.5" htmlFor="password">
                                 Password
                             </label>
-                            <input
-                                id="password"
-                                type="password"
-                                required
-                                placeholder="••••••••"
-                                className="input-glass w-full"
-                                value={form.password}
-                                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                            />
+                            <div className="relative">
+                                <input
+                                    id="password"
+                                    type={showPassword ? "text" : "password"}
+                                    required
+                                    placeholder="••••••••"
+                                    className="input-glass w-full pr-10"
+                                    value={form.password}
+                                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
                         </div>
 
                         {error && (

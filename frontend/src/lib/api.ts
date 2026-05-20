@@ -14,8 +14,10 @@
 
 import { authHeader, getToken } from "./auth";
 
-/** Base URL loaded from environment variable */
-export const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const BASE_URL = 
+  (typeof process !== "undefined" && process.env && process.env.NEXT_PUBLIC_API_URL) ||
+  (import.meta.env && import.meta.env.VITE_API_URL) ||
+  "http://localhost:8000";
 
 // ---------------------------------------------------------------------------
 // Generic fetch wrapper
