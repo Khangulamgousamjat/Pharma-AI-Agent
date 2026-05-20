@@ -8,7 +8,8 @@
   --cyan2: #67e8f9;
 
   /* Light Mode */
-  --bg-light: #0d0a2e;   /* deep navy even in light — DNA looks best on dark */
+  --bg-light: #0a1628;   /* deep navy even in light — DNA looks best on dark */
+  --bg-base:  #0a1628;
 
   /* Dark Mode */
   --bg-dark: #04040f;

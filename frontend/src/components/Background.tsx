@@ -12,24 +12,23 @@ const Background = memo(function Background() {
         zIndex: 0,
         overflow: 'hidden',
         pointerEvents: 'none',
-        background: 'var(--bg-light)',
+        background: 'radial-gradient(ellipse 120% 100% at 50% 0%, #0d1f3c 0%, #0a1628 40%, #060e1a 100%)',
       }}
     >
       <DnaCanvas />
-      <GlowOrbs />
     </div>
   );
 });
 
 export default Background;
 
-/* ═══════════════════════════════════════════════
-   CANVAS — Full-screen animated DNA double helix
-   ═══════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════
+   CANVAS — 5-6 real 3D twisted DNA helix pieces scattered
+   across entire screen, each floating independently
+   ════════════════════════════════════════════════════════════ */
 function DnaCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef    = useRef<number>(0);
-  const tRef      = useRef<number>(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -37,7 +36,7 @@ function DnaCanvas() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    /* Resize handler */
+    /* ── Resize ── */
     const resize = () => {
       canvas.width  = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -45,143 +44,248 @@ function DnaCanvas() {
     resize();
     window.addEventListener('resize', resize);
 
-    /* ── DNA Config ── */
-    const STRANDS    = 2;          // double helix
-    const NODES      = 28;         // base pairs visible
-    const AMPLITUDE  = 120;        // how wide the helix spreads
-    const WAVELENGTH = 220;        // vertical distance for one full rotation
-    const SPEED      = 0.0004;     // rotation speed
-    const PARTICLE_COUNT = 180;    // background bokeh particles
+    /* ════════════════════════════════════════
+       DNA HELIX PIECE DEFINITIONS
+       Each piece: position, size, tilt, speed
+       ════════════════════════════════════════ */
+    const helixes = [
+      // { x, y } = center position as fraction of screen
+      // size = scale multiplier
+      // tilt = rotation angle in radians
+      // speed = rotation speed
+      // driftX/driftY = floating direction
+      // opacity = brightness (0.3 = background, 1.0 = foreground)
+      // segments = how many base pairs to draw
+      {
+        xFrac: 0.10, yFrac: 0.30, size: 1.10,
+        tilt: -0.45, speed: 0.00025, driftX: 0.12, driftY: -0.06,
+        opacity: 0.85, segments: 10, phase: 0,
+      },
+      {
+        xFrac: 0.88, yFrac: 0.22, size: 0.90,
+        tilt: 0.40, speed: 0.00030, driftX: -0.10, driftY: 0.08,
+        opacity: 0.80, segments: 9, phase: 1.2,
+      },
+      {
+        xFrac: 0.75, yFrac: 0.72, size: 1.20,
+        tilt: -0.30, speed: 0.00018, driftX: 0.08, driftY: -0.10,
+        opacity: 0.75, segments: 11, phase: 2.4,
+      },
+      {
+        xFrac: 0.22, yFrac: 0.78, size: 0.80,
+        tilt: 0.55, speed: 0.00035, driftX: -0.07, driftY: 0.05,
+        opacity: 0.65, segments: 8, phase: 0.8,
+      },
+      {
+        xFrac: 0.50, yFrac: 0.10, size: 0.70,
+        tilt: 0.20, speed: 0.00022, driftX: 0.05, driftY: 0.07,
+        opacity: 0.55, segments: 7, phase: 3.6,
+      },
+      {
+        xFrac: 0.60, yFrac: 0.50, size: 0.55,
+        tilt: -0.65, speed: 0.00040, driftX: -0.06, driftY: -0.04,
+        opacity: 0.40, segments: 6, phase: 1.8,
+      },
+    ];
 
-    /* ── Bokeh particles ── */
+    /* ── Particle dust ── */
+    const PARTICLE_COUNT = 220;
     const particles = Array.from({ length: PARTICLE_COUNT }, () => ({
-      x:    Math.random() * window.innerWidth,
-      y:    Math.random() * window.innerHeight,
-      r:    Math.random() * 3.5 + 0.5,
-      a:    Math.random() * 0.7 + 0.1,
-      vx:   (Math.random() - 0.5) * 0.25,
-      vy:   (Math.random() - 0.5) * 0.18,
-      hue:  Math.random() > 0.7 ? 0 : 220, // red or blue
+      x:   Math.random() * window.innerWidth,
+      y:   Math.random() * window.innerHeight,
+      r:   Math.random() * 2.2 + 0.3,
+      a:   Math.random() * 0.55 + 0.08,
+      vx:  (Math.random() - 0.5) * 0.20,
+      vy:  (Math.random() - 0.5) * 0.15,
+      hue: Math.random() > 0.75 ? 'red' : 'blue',
     }));
 
-    /* ── Draw a glowing dot ── */
-    const glowDot = (x: number, y: number, r: number, color: string, alpha: number) => {
-      const grad = ctx.createRadialGradient(x, y, 0, x, y, r * 3);
-      grad.addColorStop(0, color.replace('A', `${alpha}`));
-      grad.addColorStop(0.4, color.replace('A', `${alpha * 0.6}`));
-      grad.addColorStop(1, color.replace('A', '0'));
-      ctx.beginPath();
-      ctx.arc(x, y, r * 3, 0, Math.PI * 2);
-      ctx.fillStyle = grad;
-      ctx.fill();
-      /* solid core */
-      ctx.beginPath();
-      ctx.arc(x, y, r * 0.6, 0, Math.PI * 2);
-      ctx.fillStyle = color.replace('A', `${Math.min(alpha + 0.3, 1)}`);
-      ctx.fill();
+    /* ════════════════════════════════════════
+       DRAW ONE DNA HELIX PIECE
+       cx, cy     = center of this piece
+       size       = scale
+       t          = current time angle
+       tilt       = screen rotation
+       segments   = number of base pairs
+       alpha      = overall opacity
+       ════════════════════════════════════════ */
+    const drawDna = (
+      cx: number, cy: number,
+      size: number, t: number,
+      tilt: number, segments: number, alpha: number
+    ) => {
+      const W  = 48  * size;   // strand spread width (how wide the helix is)
+      const SH = 38  * size;   // vertical spacing between base pairs
+      const totalH = SH * segments;
+
+      /* Save canvas state and apply tilt rotation around center */
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(tilt);
+
+      const halfH = totalH / 2;
+
+      /* Collect all points for both strands */
+      type Pt = { x: number; y: number; depth: number };
+      const strand1: Pt[] = [];
+      const strand2: Pt[] = [];
+
+      for (let i = 0; i <= segments; i++) {
+        const prog  = i / segments;
+        const y     = prog * totalH - halfH;
+        const angle = prog * Math.PI * 3 + t; // 3 full twists per piece
+
+        const depth = Math.sin(angle); // -1..1 simulates Z depth
+
+        strand1.push({
+          x:     Math.cos(angle) * W,
+          y,
+          depth,
+        });
+        strand2.push({
+          x:     -Math.cos(angle) * W,
+          y,
+          depth: -depth,
+        });
+      }
+
+      /* ── Draw backbone ribbons (thick smooth curves) ── */
+      const drawRibbon = (pts: Pt[], colorFront: string, colorBack: string) => {
+        /* Split into segments and color by depth */
+        for (let i = 0; i < pts.length - 1; i++) {
+          const p  = pts[i];
+          const q  = pts[i + 1];
+          const d  = (p.depth + 1) / 2;  // 0..1
+
+          /* Interpolate color: back = deep blue, front = bright cyan */
+          const r = Math.round(0   + d * 0);
+          const g = Math.round(80  + d * 140);
+          const b = Math.round(180 + d * 75);
+          const a = (0.30 + d * 0.70) * alpha;
+
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(q.x, q.y);
+          ctx.strokeStyle = `rgba(${r},${g},${b},${a})`;
+          ctx.lineWidth   = (2.5 + d * 3.5) * size;  // thicker in front
+          ctx.lineCap     = 'round';
+
+          /* Glow effect on front strands */
+          if (d > 0.6) {
+            ctx.shadowColor = `rgba(0, 210, 255, ${d * alpha * 0.8})`;
+            ctx.shadowBlur  = 10 * size;
+          } else {
+            ctx.shadowBlur = 0;
+          }
+          ctx.stroke();
+        }
+        ctx.shadowBlur = 0;
+      };
+
+      drawRibbon(strand1, '#00d4ff', '#005588');
+      drawRibbon(strand2, '#0099ee', '#003366');
+
+      /* ── Draw rungs (base pairs connecting the two strands) ── */
+      /* Sort by average depth so back rungs draw first */
+      const rungs = strand1.map((p, i) => ({
+        p1: p,
+        p2: strand2[i],
+        avgDepth: (p.depth + strand2[i].depth) / 2,
+      }));
+      rungs.sort((a, b) => a.avgDepth - b.avgDepth);
+
+      rungs.forEach(({ p1, p2, avgDepth }) => {
+        const d = (avgDepth + 1) / 2;
+        const a = (0.15 + d * 0.55) * alpha;
+
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.strokeStyle = `rgba(100, 200, 255, ${a})`;
+        ctx.lineWidth   = (0.8 + d * 1.0) * size;
+        ctx.stroke();
+
+        /* Glowing node dots at each end of the rung */
+        [[p1.x, p1.y, p1.depth], [p2.x, p2.y, p2.depth]].forEach(([nx, ny, nd]) => {
+          const nd01  = ((nd as number) + 1) / 2;
+          const nodeA = (0.3 + nd01 * 0.7) * alpha;
+          const nodeR = (2.0 + nd01 * 3.5) * size;
+
+          /* Outer glow */
+          const grad = ctx.createRadialGradient(
+            nx as number, ny as number, 0,
+            nx as number, ny as number, nodeR * 3
+          );
+          grad.addColorStop(0,   `rgba(180, 240, 255, ${nodeA})`);
+          grad.addColorStop(0.4, `rgba(0,   180, 255, ${nodeA * 0.6})`);
+          grad.addColorStop(1,   `rgba(0,   120, 200, 0)`);
+          ctx.beginPath();
+          ctx.arc(nx as number, ny as number, nodeR * 3, 0, Math.PI * 2);
+          ctx.fillStyle = grad;
+          ctx.fill();
+
+          /* Solid core */
+          ctx.beginPath();
+          ctx.arc(nx as number, ny as number, nodeR * 0.55, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(220, 245, 255, ${Math.min(nodeA + 0.2, 1)})`;
+          ctx.fill();
+        });
+      });
+
+      ctx.restore();
     };
 
-    /* ── Draw one DNA strand ── */
-    const drawHelix = (
-      cx: number,    // center X of this helix column
-      phaseOffset: number,
-      t: number,
-    ) => {
+    /* ════════════════════════════════════
+       ANIMATION LOOP
+       ════════════════════════════════════ */
+    const startTime = performance.now();
+
+    const draw = (now: number) => {
+      const elapsed = (now - startTime) * 0.001; // seconds
       const W = canvas.width;
       const H = canvas.height;
 
-      /* Calculate all node positions for both strands */
-      const strand: Array<{x1:number; y1:number; x2:number; y2:number; depth:number}> = [];
+      ctx.clearRect(0, 0, W, H);
 
-      for (let i = 0; i < NODES; i++) {
-        const yFrac = i / (NODES - 1);
-        const y     = yFrac * (H + 100) - 50;
-        const angle = (yFrac * Math.PI * 2 * (H / WAVELENGTH)) + t + phaseOffset;
-        const depth = Math.sin(angle); // -1 to 1 for z-depth
-
-        const x1 = cx + Math.cos(angle) * AMPLITUDE;
-        const x2 = cx - Math.cos(angle) * AMPLITUDE;
-
-        strand.push({ x1, y1: y, x2, y2: y, depth });
-      }
-
-      /* Draw rungs (base pairs) back-to-front based on depth */
-      const sorted = [...strand].sort((a, b) => a.depth - b.depth);
-      sorted.forEach(({ x1, y1, x2, depth }) => {
-        const alpha = (depth + 1) / 2;   // 0..1
-        const brightness = 0.3 + alpha * 0.7;
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y1);
-        ctx.strokeStyle = `rgba(100, 180, 255, ${brightness * 0.55})`;
-        ctx.lineWidth   = 0.8 + alpha * 0.6;
-        ctx.stroke();
-
-        /* Node dots on each end of rung */
-        const nodeColor = depth > 0
-          ? `rgba(140, 200, 255, A)`   // front — bright blue
-          : `rgba(60,  120, 220, A)`;  // back  — deeper blue
-        glowDot(x1, y1, 3 + alpha * 2, nodeColor, 0.5 + alpha * 0.5);
-        glowDot(x2, y1, 3 + alpha * 2, nodeColor, 0.5 + alpha * 0.5);
-      });
-
-      /* Draw two backbone curves */
-      [0, 1].forEach(strandIdx => {
-        ctx.beginPath();
-        strand.forEach(({ x1, x2, y1 }, i) => {
-          const x = strandIdx === 0 ? x1 : x2;
-          if (i === 0) ctx.moveTo(x, y1);
-          else         ctx.lineTo(x, y1);
-        });
-        ctx.strokeStyle = strandIdx === 0
-          ? 'rgba(120, 200, 255, 0.70)'
-          : 'rgba(80,  160, 255, 0.55)';
-        ctx.lineWidth = 1.8;
-        ctx.shadowColor = 'rgba(100, 180, 255, 0.90)';
-        ctx.shadowBlur  = 8;
-        ctx.stroke();
-        ctx.shadowBlur  = 0;
-      });
-    };
-
-    /* ── Animation loop ── */
-    const draw = (ts: number) => {
-      const delta = ts - tRef.current;
-      tRef.current = ts;
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      const t = ts * SPEED;
-
-      /* Draw bokeh particles */
+      /* ── Particle dust ── */
       particles.forEach(p => {
         p.x += p.vx;
         p.y += p.vy;
-        if (p.x < -10) p.x = canvas.width + 10;
-        if (p.x > canvas.width + 10) p.x = -10;
-        if (p.y < -10) p.y = canvas.height + 10;
-        if (p.y > canvas.height + 10) p.y = -10;
+        if (p.x < -5)    p.x = W + 5;
+        if (p.x > W + 5) p.x = -5;
+        if (p.y < -5)    p.y = H + 5;
+        if (p.y > H + 5) p.y = -5;
 
-        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 4);
-        const col  = p.hue === 0
-          ? `rgba(255, 80, 80, ${p.a * 0.7})`
-          : `rgba(80, 160, 255, ${p.a * 0.7})`;
-        grad.addColorStop(0, col);
+        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 5);
+        if (p.hue === 'red') {
+          grad.addColorStop(0,  `rgba(255, 80,  80,  ${p.a})`);
+        } else {
+          grad.addColorStop(0,  `rgba(80,  180, 255, ${p.a})`);
+        }
         grad.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r * 4, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, p.r * 5, 0, Math.PI * 2);
         ctx.fillStyle = grad;
         ctx.fill();
       });
 
-      /* Draw 2 DNA helixes at different X positions */
-      drawHelix(canvas.width * 0.25, 0,           t);
-      drawHelix(canvas.width * 0.75, Math.PI,      t);
+      /* ── Draw each DNA helix piece ── */
+      helixes.forEach(h => {
+        /* Slow independent drift */
+        const driftRange = 35;
+        const driftX = Math.sin(elapsed * h.driftX + h.phase) * driftRange;
+        const driftY = Math.cos(elapsed * h.driftY + h.phase) * driftRange;
+
+        const cx = h.xFrac * W + driftX;
+        const cy = h.yFrac * H + driftY;
+        const t  = elapsed * h.speed * 1000 + h.phase;
+
+        drawDna(cx, cy, h.size, t, h.tilt, h.segments, h.opacity);
+      });
 
       rafRef.current = requestAnimationFrame(draw);
     };
 
-    tRef.current = performance.now();
     rafRef.current = requestAnimationFrame(draw);
 
     return () => {
@@ -198,63 +302,7 @@ function DnaCanvas() {
         inset: 0,
         width: '100%',
         height: '100%',
-        opacity: 0.85,
       }}
     />
-  );
-}
-
-/* ═══════════════════════════
-   Soft glow orbs (background)
-   ═══════════════════════════ */
-function GlowOrbs() {
-  return (
-    <>
-      <style>{`
-        @keyframes orbFloat {
-          0%   { transform: translate(0px,   0px);   }
-          33%  { transform: translate(20px, -15px);  }
-          66%  { transform: translate(-15px, 20px);  }
-          100% { transform: translate(0px,   0px);   }
-        }
-        .bg-orb {
-          position: absolute;
-          border-radius: 50%;
-          filter: blur(80px);
-          will-change: transform;
-          animation: orbFloat ease-in-out infinite;
-          pointer-events: none;
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .bg-orb { animation: none; }
-        }
-      `}</style>
-
-      {/* Violet orb — top left */}
-      <div className="bg-orb" style={{
-        width: 500, height: 500,
-        top: -120, left: -80,
-        background: 'radial-gradient(circle, rgba(109,40,217,0.45), transparent 70%)',
-        animationDuration: '28s',
-      }} />
-
-      {/* Cyan orb — bottom right */}
-      <div className="bg-orb" style={{
-        width: 420, height: 420,
-        bottom: -100, right: -60,
-        background: 'radial-gradient(circle, rgba(6,182,212,0.22), transparent 70%)',
-        animationDuration: '22s',
-        animationDelay: '-9s',
-      }} />
-
-      {/* Red accent — mid left (matches reference bokeh) */}
-      <div className="bg-orb" style={{
-        width: 280, height: 280,
-        top: '35%', left: '5%',
-        background: 'radial-gradient(circle, rgba(239,68,68,0.12), transparent 70%)',
-        animationDuration: '18s',
-        animationDelay: '-5s',
-      }} />
-    </>
   );
 }

@@ -19,8 +19,7 @@
   }
 
   body {
-    /* Transparent — Background component handles the actual bg */
-    background: transparent;
+    background-color: #0a1628;
     min-height: 100vh;
     font-family: 'Inter', system-ui, sans-serif;
     color: var(--text-primary-light);
