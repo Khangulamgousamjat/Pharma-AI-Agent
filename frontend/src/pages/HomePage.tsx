@@ -12,7 +12,6 @@ import {
   Github,
   CheckCircle2
 } from "lucide-react";
-import MedicalCrossLogo from "@/components/MedicalCrossLogo";
 
 /** 
  * Root Landing Page — PharmaAgent AI
@@ -30,7 +29,6 @@ export default function LandingPage() {
       <nav className="navbar sticky top-0 z-[100]">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <MedicalCrossLogo size={32} variant="teal" />
             <span className="font-bold text-xl gradient-text tracking-tight">
               PharmaAgent AI
             </span>
@@ -217,7 +215,6 @@ export default function LandingPage() {
             {/* Branding Column */}
             <div className="space-y-6">
               <div className="flex items-center gap-2">
-                <MedicalCrossLogo size={32} variant="teal" />
                 <span className="font-bold text-xl text-white">
                   PharmaAgent AI
                 </span>

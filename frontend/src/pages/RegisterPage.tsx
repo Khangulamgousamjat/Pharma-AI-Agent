@@ -7,7 +7,6 @@ import { registerUser, fetchMyProfile } from "@/lib/api";
 import { saveUserLocal } from "@/lib/auth";
 import GlassPanel from "@/components/GlassPanel";
 import { ChevronDown, Chrome, Eye, EyeOff } from "lucide-react";
-import MedicalCrossLogo from "@/components/MedicalCrossLogo";
 
 import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -124,7 +123,6 @@ export default function RegisterPage() {
 
             <div className="w-full max-w-md relative z-10 pt-10 pb-10">
                 <div className="text-center mb-8">
-                    <MedicalCrossLogo size={64} variant="teal" />
                     <h1 className="text-3xl font-bold gradient-text">PharmaAgent AI</h1>
                     <p className="text-slate-600 dark:text-slate-400 mt-2 text-sm">Create your pharmacy account</p>
                 </div>
