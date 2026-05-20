@@ -1,79 +1,33 @@
 :root {
-  /* Purple/Violet Brand */
-  --p-100: #ede9fe;
+  /* Brand */
   --p-300: #c4b5fd;
   --p-400: #a78bfa;
   --p-500: #8b5cf6;
   --p-600: #7c3aed;
-  --p-700: #6d28d9;
   --cyan:  #06b6d4;
+  --cyan2: #67e8f9;
 
-  /* Light Mode Background */
-  --bg-light: #f5f3ff;
+  /* Light Mode */
+  --bg-light: #0d0a2e;   /* deep navy even in light — DNA looks best on dark */
 
-  /* Dark Mode Background */
-  --bg-dark: #07070f;
+  /* Dark Mode */
+  --bg-dark: #04040f;
 
-  /* Glass — Light */
-  --gl-bg:      rgba(255, 255, 255, 0.15);
-  --gl-border:  rgba(255, 255, 255, 0.50);
-  --gl-shadow:  0 8px 32px rgba(124, 58, 237, 0.15), 0 2px 8px rgba(124, 58, 237, 0.08);
-  --gl-blur:    blur(20px) saturate(180%);
-  --gl-top:     rgba(255, 255, 255, 0.80);   /* top-edge highlight color */
+  /* ── GLASS — LIGHT (less blur = more visible) ── */
+  --gl-bg:      rgba(255, 255, 255, 0.10);   /* lighter fill */
+  --gl-border:  rgba(255, 255, 255, 0.35);
+  --gl-shadow:  0 4px 24px rgba(124, 58, 237, 0.20), 0 1px 4px rgba(0,0,0,0.12);
+  --gl-blur:    blur(10px) saturate(160%);    /* REDUCED from 20px */
+  --gl-top:     rgba(255, 255, 255, 0.75);
 
-  /* Glass — Dark */
-  --gld-bg:     rgba(255, 255, 255, 0.04);
-  --gld-border: rgba(255, 255, 255, 0.09);
-  --gld-shadow: 0 8px 40px rgba(0, 0, 0, 0.60), 0 0 0 1px rgba(139, 92, 246, 0.12);
-  --gld-blur:   blur(20px) saturate(160%);
-  --gld-top:    rgba(255, 255, 255, 0.10);   /* top-edge highlight color dark */
+  /* ── GLASS — DARK ── */
+  --gld-bg:     rgba(255, 255, 255, 0.06);
+  --gld-border: rgba(255, 255, 255, 0.12);
+  --gld-shadow: 0 8px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(139,92,246,0.15);
+  --gld-blur:   blur(10px) saturate(150%);   /* REDUCED from 20px */
+  --gld-top:    rgba(255, 255, 255, 0.12);
 
-  /* Misc */
   --radius:     20px;
   --radius-sm:  12px;
   --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* Legacy design-system variables mapped to new tokens */
-  --color-primary:        var(--p-600);
-  --color-primary-light:  var(--p-400);
-  --color-primary-glow:   var(--p-300);
-  --color-accent:         var(--cyan);
-
-  --glass-light-bg:       var(--gl-bg);
-  --glass-light-border:   var(--gl-border);
-  --glass-light-shadow:   var(--gl-shadow);
-  --glass-light-blur:     var(--gl-blur);
-  --glass-light-highlight: inset 0 1px 0 var(--gl-top);
-
-  --glass-dark-bg:        var(--gld-bg);
-  --glass-dark-border:    var(--gld-border);
-  --glass-dark-shadow:    var(--gld-shadow);
-  --glass-dark-blur:      var(--gld-blur);
-  --glass-dark-highlight: inset 0 1px 0 var(--gld-top);
-  --glass-dark-glow:      0 0 0 1px rgba(167,139,250,0.15), 0 0 24px rgba(124,58,237,0.12);
-
-  --text-primary-light:   #1e1033;
-  --text-secondary-light: #4c3d8f;
-  --text-muted-light:     #7c6db0;
-
-  --text-primary-dark:    #f0ebff;
-  --text-secondary-dark:  #c4b5fd;
-  --text-muted-dark:      #7c6db0;
-
-  --radius-glass:         var(--radius);
-  --transition-smooth:    var(--transition);
-
-  --glass-bg:             var(--gl-bg);
-  --glass-border:         var(--gl-border);
-  --glass-shadow:         var(--gl-shadow);
-  --bg-gradient:          var(--bg-light);
-  --text-color:           var(--text-primary-light);
-}
-
-.dark, [data-theme="dark"] {
-  --glass-bg:             var(--gld-bg);
-  --glass-border:         var(--gld-border);
-  --glass-shadow:         var(--gld-shadow);
-  --bg-gradient:          var(--bg-dark);
-  --text-color:           var(--text-primary-dark);
 }

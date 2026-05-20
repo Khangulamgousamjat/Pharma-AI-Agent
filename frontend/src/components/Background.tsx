@@ -1,8 +1,7 @@
 'use client';
 
-import { memo } from 'react';
+import { useEffect, useRef, memo } from 'react';
 
-/* ─── Main export ─── */
 const Background = memo(function Background() {
   return (
     <div
@@ -13,211 +12,249 @@ const Background = memo(function Background() {
         zIndex: 0,
         overflow: 'hidden',
         pointerEvents: 'none',
+        background: 'var(--bg-light)',
       }}
     >
-      <BgGradient />
-      <Orbs />
-      <MoleculeLayer />
+      <DnaCanvas />
+      <GlowOrbs />
     </div>
   );
 });
 
 export default Background;
 
-/* ─── Gradient base ─── */
-function BgGradient() {
+/* ═══════════════════════════════════════════════
+   CANVAS — Full-screen animated DNA double helix
+   ═══════════════════════════════════════════════ */
+function DnaCanvas() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rafRef    = useRef<number>(0);
+  const tRef      = useRef<number>(0);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    /* Resize handler */
+    const resize = () => {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    /* ── DNA Config ── */
+    const STRANDS    = 2;          // double helix
+    const NODES      = 28;         // base pairs visible
+    const AMPLITUDE  = 120;        // how wide the helix spreads
+    const WAVELENGTH = 220;        // vertical distance for one full rotation
+    const SPEED      = 0.0004;     // rotation speed
+    const PARTICLE_COUNT = 180;    // background bokeh particles
+
+    /* ── Bokeh particles ── */
+    const particles = Array.from({ length: PARTICLE_COUNT }, () => ({
+      x:    Math.random() * window.innerWidth,
+      y:    Math.random() * window.innerHeight,
+      r:    Math.random() * 3.5 + 0.5,
+      a:    Math.random() * 0.7 + 0.1,
+      vx:   (Math.random() - 0.5) * 0.25,
+      vy:   (Math.random() - 0.5) * 0.18,
+      hue:  Math.random() > 0.7 ? 0 : 220, // red or blue
+    }));
+
+    /* ── Draw a glowing dot ── */
+    const glowDot = (x: number, y: number, r: number, color: string, alpha: number) => {
+      const grad = ctx.createRadialGradient(x, y, 0, x, y, r * 3);
+      grad.addColorStop(0, color.replace('A', `${alpha}`));
+      grad.addColorStop(0.4, color.replace('A', `${alpha * 0.6}`));
+      grad.addColorStop(1, color.replace('A', '0'));
+      ctx.beginPath();
+      ctx.arc(x, y, r * 3, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      /* solid core */
+      ctx.beginPath();
+      ctx.arc(x, y, r * 0.6, 0, Math.PI * 2);
+      ctx.fillStyle = color.replace('A', `${Math.min(alpha + 0.3, 1)}`);
+      ctx.fill();
+    };
+
+    /* ── Draw one DNA strand ── */
+    const drawHelix = (
+      cx: number,    // center X of this helix column
+      phaseOffset: number,
+      t: number,
+    ) => {
+      const W = canvas.width;
+      const H = canvas.height;
+
+      /* Calculate all node positions for both strands */
+      const strand: Array<{x1:number; y1:number; x2:number; y2:number; depth:number}> = [];
+
+      for (let i = 0; i < NODES; i++) {
+        const yFrac = i / (NODES - 1);
+        const y     = yFrac * (H + 100) - 50;
+        const angle = (yFrac * Math.PI * 2 * (H / WAVELENGTH)) + t + phaseOffset;
+        const depth = Math.sin(angle); // -1 to 1 for z-depth
+
+        const x1 = cx + Math.cos(angle) * AMPLITUDE;
+        const x2 = cx - Math.cos(angle) * AMPLITUDE;
+
+        strand.push({ x1, y1: y, x2, y2: y, depth });
+      }
+
+      /* Draw rungs (base pairs) back-to-front based on depth */
+      const sorted = [...strand].sort((a, b) => a.depth - b.depth);
+      sorted.forEach(({ x1, y1, x2, depth }) => {
+        const alpha = (depth + 1) / 2;   // 0..1
+        const brightness = 0.3 + alpha * 0.7;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y1);
+        ctx.strokeStyle = `rgba(100, 180, 255, ${brightness * 0.55})`;
+        ctx.lineWidth   = 0.8 + alpha * 0.6;
+        ctx.stroke();
+
+        /* Node dots on each end of rung */
+        const nodeColor = depth > 0
+          ? `rgba(140, 200, 255, A)`   // front — bright blue
+          : `rgba(60,  120, 220, A)`;  // back  — deeper blue
+        glowDot(x1, y1, 3 + alpha * 2, nodeColor, 0.5 + alpha * 0.5);
+        glowDot(x2, y1, 3 + alpha * 2, nodeColor, 0.5 + alpha * 0.5);
+      });
+
+      /* Draw two backbone curves */
+      [0, 1].forEach(strandIdx => {
+        ctx.beginPath();
+        strand.forEach(({ x1, x2, y1 }, i) => {
+          const x = strandIdx === 0 ? x1 : x2;
+          if (i === 0) ctx.moveTo(x, y1);
+          else         ctx.lineTo(x, y1);
+        });
+        ctx.strokeStyle = strandIdx === 0
+          ? 'rgba(120, 200, 255, 0.70)'
+          : 'rgba(80,  160, 255, 0.55)';
+        ctx.lineWidth = 1.8;
+        ctx.shadowColor = 'rgba(100, 180, 255, 0.90)';
+        ctx.shadowBlur  = 8;
+        ctx.stroke();
+        ctx.shadowBlur  = 0;
+      });
+    };
+
+    /* ── Animation loop ── */
+    const draw = (ts: number) => {
+      const delta = ts - tRef.current;
+      tRef.current = ts;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const t = ts * SPEED;
+
+      /* Draw bokeh particles */
+      particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < -10) p.x = canvas.width + 10;
+        if (p.x > canvas.width + 10) p.x = -10;
+        if (p.y < -10) p.y = canvas.height + 10;
+        if (p.y > canvas.height + 10) p.y = -10;
+
+        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 4);
+        const col  = p.hue === 0
+          ? `rgba(255, 80, 80, ${p.a * 0.7})`
+          : `rgba(80, 160, 255, ${p.a * 0.7})`;
+        grad.addColorStop(0, col);
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * 4, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.fill();
+      });
+
+      /* Draw 2 DNA helixes at different X positions */
+      drawHelix(canvas.width * 0.25, 0,           t);
+      drawHelix(canvas.width * 0.75, Math.PI,      t);
+
+      rafRef.current = requestAnimationFrame(draw);
+    };
+
+    tRef.current = performance.now();
+    rafRef.current = requestAnimationFrame(draw);
+
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      window.removeEventListener('resize', resize);
+    };
+  }, []);
+
   return (
-    <>
-      {/* Light mode gradient */}
-      <style>{`
-        .bg-base-light {
-          position: absolute;
-          inset: 0;
-          background:
-            radial-gradient(ellipse 80% 80% at 15% 10%, rgba(167,139,250,0.50) 0%, transparent 60%),
-            radial-gradient(ellipse 65% 65% at 85% 85%, rgba(6,182,212,0.22) 0%, transparent 55%),
-            radial-gradient(ellipse 90% 60% at 50% 50%, rgba(196,181,253,0.35) 0%, transparent 70%),
-            #f5f3ff;
-        }
-        .dark .bg-base-light,
-        [data-theme="dark"] .bg-base-light {
-          background:
-            radial-gradient(ellipse 75% 70% at 15% 15%, rgba(109,40,217,0.40) 0%, transparent 65%),
-            radial-gradient(ellipse 55% 55% at 85% 80%, rgba(6,182,212,0.14) 0%, transparent 55%),
-            radial-gradient(ellipse 80% 55% at 50% 55%, rgba(76,29,149,0.30) 0%, transparent 70%),
-            #07070f;
-        }
-      `}</style>
-      <div className="bg-base-light" />
-    </>
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        opacity: 0.85,
+      }}
+    />
   );
 }
 
-/* ─── Soft glowing orbs ─── */
-function Orbs() {
+/* ═══════════════════════════
+   Soft glow orbs (background)
+   ═══════════════════════════ */
+function GlowOrbs() {
   return (
     <>
       <style>{`
-        @keyframes orbDrift {
-          0%   { transform: translate(0px,   0px)   scale(1.00); }
-          25%  { transform: translate(25px, -18px)  scale(1.04); }
-          50%  { transform: translate(-18px, 25px)  scale(0.97); }
-          75%  { transform: translate(15px,  12px)  scale(1.02); }
-          100% { transform: translate(0px,   0px)   scale(1.00); }
+        @keyframes orbFloat {
+          0%   { transform: translate(0px,   0px);   }
+          33%  { transform: translate(20px, -15px);  }
+          66%  { transform: translate(-15px, 20px);  }
+          100% { transform: translate(0px,   0px);   }
         }
-        .orb {
+        .bg-orb {
           position: absolute;
           border-radius: 50%;
-          filter: blur(70px);
+          filter: blur(80px);
           will-change: transform;
-          animation: orbDrift ease-in-out infinite;
-        }
-        .orb1 {
-          width: 560px; height: 560px;
-          top: -140px; left: -100px;
-          background: radial-gradient(circle, rgba(196,181,253,0.55), transparent 70%);
-          animation-duration: 28s;
-        }
-        .orb2 {
-          width: 480px; height: 480px;
-          bottom: -100px; right: -80px;
-          background: radial-gradient(circle, rgba(6,182,212,0.30), transparent 70%);
-          animation-duration: 22s;
-          animation-delay: -7s;
-        }
-        .orb3 {
-          width: 420px; height: 420px;
-          top: 38%; left: 48%;
-          background: radial-gradient(circle, rgba(167,139,250,0.40), transparent 70%);
-          animation-duration: 33s;
-          animation-delay: -14s;
-        }
-        /* Dark orbs are more saturated */
-        .dark .orb1, [data-theme="dark"] .orb1 {
-          background: radial-gradient(circle, rgba(139,92,246,0.38), transparent 70%);
-        }
-        .dark .orb2, [data-theme="dark"] .orb2 {
-          background: radial-gradient(circle, rgba(6,182,212,0.18), transparent 70%);
-        }
-        .dark .orb3, [data-theme="dark"] .orb3 {
-          background: radial-gradient(circle, rgba(109,40,217,0.28), transparent 70%);
+          animation: orbFloat ease-in-out infinite;
+          pointer-events: none;
         }
         @media (prefers-reduced-motion: reduce) {
-          .orb { animation: none; }
-        }
-      `}</style>
-      <div className="orb orb1" />
-      <div className="orb orb2" />
-      <div className="orb orb3" />
-    </>
-  );
-}
-
-/* ─── Antigravity molecule + DNA layer ─── */
-function MoleculeLayer() {
-  return (
-    <>
-      <style>{`
-        @keyframes antigrav {
-          0%   { transform: translateY(0px)   rotate(0deg);   }
-          30%  { transform: translateY(-22px) rotate(4deg);   }
-          65%  { transform: translateY(-10px) rotate(-3deg);  }
-          100% { transform: translateY(0px)   rotate(0deg);   }
-        }
-        @keyframes spin {
-          from { transform: rotate(0deg);   }
-          to   { transform: rotate(360deg); }
-        }
-        .mol-wrap {
-          position: absolute;
-          will-change: transform;
-          animation: antigrav ease-in-out infinite;
-        }
-        .mol-inner {
-          animation: spin linear infinite;
-          transform-origin: center center;
-        }
-        /* SVG stroke colors */
-        .mol-bond  { stroke: rgba(124,58,237,0.28);  stroke-width: 0.8px; fill: none; }
-        .mol-ring  { stroke: rgba(6,182,212,0.32);   stroke-width: 0.5px; fill: none; }
-        .mol-node  { fill: rgba(124,58,237,0.55); }
-        .mol-hub   { fill: #7c3aed; }
-        .dna-s1    { stroke: rgba(139,92,246,0.50); stroke-width: 1.4px; fill: none; }
-        .dna-s2    { stroke: rgba(6,182,212,0.40);  stroke-width: 1.4px; fill: none; }
-        .dna-rung  { stroke: rgba(196,181,253,0.40); stroke-width: 0.9px; }
-        .dark .mol-bond,  [data-theme="dark"] .mol-bond  { stroke: rgba(167,139,250,0.22); }
-        .dark .mol-ring,  [data-theme="dark"] .mol-ring  { stroke: rgba(6,182,212,0.25); }
-        .dark .mol-node,  [data-theme="dark"] .mol-node  { fill: rgba(167,139,250,0.45); }
-        .dark .mol-hub,   [data-theme="dark"] .mol-hub   { fill: #a78bfa; }
-        .dark .dna-s1,    [data-theme="dark"] .dna-s1    { stroke: rgba(167,139,250,0.45); }
-        .dark .dna-s2,    [data-theme="dark"] .dna-s2    { stroke: rgba(6,182,212,0.32); }
-        .dark .dna-rung,  [data-theme="dark"] .dna-rung  { stroke: rgba(167,139,250,0.30); }
-        @media (prefers-reduced-motion: reduce) {
-          .mol-wrap, .mol-inner { animation: none; }
+          .bg-orb { animation: none; }
         }
       `}</style>
 
-      {/* Molecule top-left */}
-      <div className="mol-wrap" style={{ top: '6%', left: '4%', width: 220, height: 220, animationDuration: '26s', animationDelay: '0s', opacity: 0.75 }}>
-        <div className="mol-inner" style={{ animationDuration: '60s' }}>
-          <MolSvg nodes={6} rings />
-        </div>
-      </div>
+      {/* Violet orb — top left */}
+      <div className="bg-orb" style={{
+        width: 500, height: 500,
+        top: -120, left: -80,
+        background: 'radial-gradient(circle, rgba(109,40,217,0.45), transparent 70%)',
+        animationDuration: '28s',
+      }} />
 
-      {/* Molecule bottom-right */}
-      <div className="mol-wrap" style={{ bottom: '8%', right: '5%', width: 280, height: 280, animationDuration: '32s', animationDelay: '-11s', opacity: 0.65 }}>
-        <div className="mol-inner" style={{ animationDuration: '80s', animationDirection: 'reverse' }}>
-          <MolSvg nodes={8} rings />
-        </div>
-      </div>
+      {/* Cyan orb — bottom right */}
+      <div className="bg-orb" style={{
+        width: 420, height: 420,
+        bottom: -100, right: -60,
+        background: 'radial-gradient(circle, rgba(6,182,212,0.22), transparent 70%)',
+        animationDuration: '22s',
+        animationDelay: '-9s',
+      }} />
 
-      {/* Small molecule center-right */}
-      <div className="mol-wrap" style={{ top: '52%', right: '8%', width: 160, height: 160, animationDuration: '20s', animationDelay: '-5s', opacity: 0.55 }}>
-        <div className="mol-inner" style={{ animationDuration: '45s' }}>
-          <MolSvg nodes={4} rings={false} />
-        </div>
-      </div>
-
-      {/* DNA left */}
-      <div className="mol-wrap" style={{ top: '22%', left: '12%', width: 70, height: 180, animationDuration: '24s', animationDelay: '-3s', opacity: 0.60 }}>
-        <DnaSvg />
-      </div>
-
-      {/* DNA top-right */}
-      <div className="mol-wrap" style={{ top: '8%', right: '14%', width: 55, height: 140, animationDuration: '29s', animationDelay: '-16s', opacity: 0.50 }}>
-        <DnaSvg />
-      </div>
+      {/* Red accent — mid left (matches reference bokeh) */}
+      <div className="bg-orb" style={{
+        width: 280, height: 280,
+        top: '35%', left: '5%',
+        background: 'radial-gradient(circle, rgba(239,68,68,0.12), transparent 70%)',
+        animationDuration: '18s',
+        animationDelay: '-5s',
+      }} />
     </>
-  );
-}
-
-/* Procedural molecule SVG */
-function MolSvg({ nodes, rings }: { nodes: number; rings: boolean }) {
-  const cx = 50, cy = 50, r = 34;
-  const pts = Array.from({ length: nodes }, (_, i) => ({
-    x: cx + r * Math.cos((2 * Math.PI * i) / nodes),
-    y: cy + r * Math.sin((2 * Math.PI * i) / nodes),
-  }));
-  return (
-    <svg viewBox="0 0 100 100" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-      {pts.map((p, i) => <line key={`b${i}`} x1={cx} y1={cy} x2={p.x} y2={p.y} className="mol-bond" />)}
-      {rings && pts.map((p, i) => (
-        <line key={`r${i}`} x1={p.x} y1={p.y} x2={pts[(i + 1) % nodes].x} y2={pts[(i + 1) % nodes].y} className="mol-ring" />
-      ))}
-      <circle cx={cx} cy={cy} r={5} className="mol-hub" />
-      {pts.map((p, i) => <circle key={`n${i}`} cx={p.x} cy={p.y} r={3} className="mol-node" />)}
-    </svg>
-  );
-}
-
-/* DNA helix SVG */
-function DnaSvg() {
-  const rungs = [18, 32, 46, 60, 74, 88];
-  return (
-    <svg viewBox="0 0 40 110" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-      <path d="M8,5 Q28,20 8,38 Q-12,56 8,74 Q28,92 8,108" className="dna-s1" />
-      <path d="M32,5 Q12,20 32,38 Q52,56 32,74 Q12,92 32,108" className="dna-s2" />
-      {rungs.map(y => <line key={y} x1="12" y1={y} x2="28" y2={y} className="dna-rung" />)}
-    </svg>
   );
 }

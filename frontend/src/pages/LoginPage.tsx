@@ -8,7 +8,7 @@ import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 
 import { auth } from "@/lib/firebase";
 import { fetchMyProfile, registerUser } from "@/lib/api";
 import { saveUserLocal } from "@/lib/auth";
-import GlassCard from "@/components/GlassCard";
+import GlassPanel from "@/components/GlassPanel";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -141,7 +141,7 @@ export default function LoginPage() {
                     <p className="text-slate-600 dark:text-slate-400 mt-2 text-sm">Your AI-powered pharmacy assistant</p>
                 </div>
 
-                <GlassCard>
+                <GlassPanel variant="modal">
                     <h2 className="text-xl font-bold text-[var(--text-color)] mb-4 text-center">Sign In</h2>
 
                     {/* Role Dropdown Selector */}
@@ -261,7 +261,7 @@ export default function LoginPage() {
                             </Link>
                         </p>
                     )}
-                </GlassCard>
+                </GlassPanel>
             </div>
         </div>
     );
