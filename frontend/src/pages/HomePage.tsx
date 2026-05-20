@@ -10,7 +10,8 @@ import {
   ShieldCheck, 
   ArrowRight,
   Github,
-  CheckCircle2
+  CheckCircle2,
+  Plus
 } from "lucide-react";
 
 /** 
@@ -29,8 +30,8 @@ export default function LandingPage() {
       <nav className="navbar sticky top-0 z-[100]">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-lg shadow-lg shadow-indigo-500/20">
-              💉
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+              <Plus size={16} className="stroke-[3.5]" />
             </div>
             <span className="font-bold text-xl gradient-text tracking-tight">
               PharmaAgent AI
@@ -218,8 +219,8 @@ export default function LandingPage() {
             {/* Branding Column */}
             <div className="space-y-6">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-lg">
-                  💉
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white">
+                  <Plus size={16} className="stroke-[3.5]" />
                 </div>
                 <span className="font-bold text-xl text-white">
                   PharmaAgent AI
