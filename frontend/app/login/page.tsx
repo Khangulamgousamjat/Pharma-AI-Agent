@@ -120,12 +120,12 @@ export default function LoginPage() {
                     </Link>
                 </div>
 
-                <div className="text-center mb-6">
+                <div className="text-center mb-6 filter drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)]">
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-3xl mb-4 shadow-lg">
                         💉
                     </div>
                     <h1 className="text-3xl font-bold gradient-text">PharmaAgent AI</h1>
-                    <p className="text-slate-600 dark:text-slate-400 mt-2 text-sm">Your AI-powered pharmacy assistant</p>
+                    <p className="text-slate-200 font-semibold mt-2 text-sm">Your AI-powered pharmacy assistant</p>
                 </div>
 
                 <GlassCard>
@@ -150,7 +150,7 @@ export default function LoginPage() {
 
                     <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
                         <div>
-                            <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1.5" htmlFor="email">
+                            <label className="block text-sm text-slate-200 font-semibold mb-1.5" htmlFor="email">
                                 Email Address
                             </label>
                             <input
@@ -165,7 +165,7 @@ export default function LoginPage() {
                         </div>
 
                         <div>
-                            <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1.5" htmlFor="password">
+                            <label className="block text-sm text-slate-200 font-semibold mb-1.5" htmlFor="password">
                                 Password
                             </label>
                             <div className="relative">

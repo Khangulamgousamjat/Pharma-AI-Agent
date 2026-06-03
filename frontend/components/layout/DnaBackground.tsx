@@ -54,8 +54,8 @@ export default function DnaBackground() {
             >
                 <source src="/videoplayback.webm" type="video/webm" />
             </video>
-            {/* Ultra-translucent vignette overlay: transparent in the center for 4K video clarity, with subtle dark corners for text contrast */}
-            <div className="absolute inset-0 bg-white/10 dark:bg-gradient-to-br dark:from-black/35 dark:via-transparent dark:to-black/45 transition-colors duration-300" />
+            {/* Ambient vignette overlay: subtle 15% dark tint in the center for 4K video clarity, with 45%-55% dark corners for text contrast */}
+            <div className="absolute inset-0 bg-white/20 dark:bg-gradient-to-br dark:from-black/45 dark:via-black/15 dark:to-black/55 transition-colors duration-300" />
         </div>
     );
 }
