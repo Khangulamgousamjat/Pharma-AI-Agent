@@ -99,9 +99,9 @@ export default function Navbar() {
                     {user && (
                         <div className="hidden sm:flex items-center gap-2">
                             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-xs font-bold text-[var(--text-color)]">
-                                {user.name[0].toUpperCase()}
+                                {(user.name || "User")[0].toUpperCase()}
                             </div>
-                            <span className="text-sm text-slate-700 dark:text-slate-300">{user.name}</span>
+                            <span className="text-sm text-slate-700 dark:text-slate-300">{user.name || "User"}</span>
                             {user.role === "admin" && (
                                 <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
                                     Admin

@@ -89,10 +89,10 @@ export default function Sidebar() {
                 <div className="p-4 space-y-3">
                     <div className="p-3 rounded-2xl bg-black/5 dark:bg-black/5 dark:bg-white/5 border border-black/10 dark:border-black/10 dark:border-white/10 flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-sm font-bold text-[var(--text-color)] shadow-md shrink-0">
-                            {user.name.charAt(0).toUpperCase()}
+                            {(user.name || "User").charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-[var(--text-color)] truncate">{user.name}</p>
+                            <p className="text-sm font-medium text-[var(--text-color)] truncate">{user.name || "User"}</p>
                             <p className="text-xs text-slate-500 dark:text-slate-600 dark:text-slate-400 uppercase tracking-wider">{user.role}</p>
                         </div>
                     </div>

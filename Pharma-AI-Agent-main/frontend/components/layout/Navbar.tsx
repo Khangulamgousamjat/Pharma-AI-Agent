@@ -71,11 +71,11 @@ export default function Navbar() {
                 {user && (
                     <div className="flex items-center gap-2">
                         <div className="text-right hidden sm:block">
-                            <p className="text-sm font-medium text-[var(--text-color)] leading-tight">{user.name}</p>
+                            <p className="text-sm font-medium text-[var(--text-color)] leading-tight">{user.name || "User"}</p>
                             <p className="text-xs text-slate-600 dark:text-slate-400 capitalize leading-tight">{user.role}</p>
                         </div>
                         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-sm font-bold text-[var(--text-color)] shadow-md">
-                            {user.name.charAt(0).toUpperCase()}
+                            {(user.name || "User").charAt(0).toUpperCase()}
                         </div>
                         <button
                             onClick={handleLogout}
