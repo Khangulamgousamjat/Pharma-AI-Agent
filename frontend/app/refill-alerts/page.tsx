@@ -20,7 +20,7 @@ export default function RefillAlertsPage() {
     const [loading, setLoading] = useState(true);
     const [predicting, setPredicting] = useState(false);
     const [predictionMsg, setPredictionMsg] = useState<string | null>(null);
-    const [userId, setUserId] = useState<number | null>(null);
+    const [userId, setUserId] = useState<number | string | null>(null);
 
     useEffect(() => {
         const user = getUser();
@@ -29,7 +29,7 @@ export default function RefillAlertsPage() {
         loadAlerts(user.id);
     }, []);
 
-    const loadAlerts = async (uid: number) => {
+    const loadAlerts = async (uid: number | string) => {
         try {
             const data = await getRefillAlerts(uid);
             setAlerts(data);

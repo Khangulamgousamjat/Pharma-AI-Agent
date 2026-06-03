@@ -84,7 +84,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 def verify_token(token: str) -> Optional[dict]:
     """
-    Decode and verify a JWT token.
+    Decode and verify a JWT token. Supports Firebase ID tokens and custom JWT fallback.
 
     Args:
         token: JWT token string from Authorization header
@@ -92,6 +92,57 @@ def verify_token(token: str) -> Optional[dict]:
     Returns:
         dict: Decoded claims if valid, None if expired/invalid
     """
+    # 1. Try to verify using Firebase Admin SDK first
+    try:
+        import firebase_admin
+        from firebase_admin import auth as firebase_auth
+        import os
+
+        # Check if firebase_admin is initialized
+        if not firebase_admin._apps:
+            # Try to load credentials from FIREBASE_CREDENTIALS env variable first
+            firebase_creds_json = os.environ.get("FIREBASE_CREDENTIALS")
+            cred = None
+            if firebase_creds_json:
+                try:
+                    import json
+                    creds_dict = json.loads(firebase_creds_json)
+                    cred = firebase_admin.credentials.Certificate(creds_dict)
+                    logger.info("[Firebase Admin] Initialized from FIREBASE_CREDENTIALS env var.")
+                except Exception as ex:
+                    logger.error(f"[Firebase Admin] Failed to parse FIREBASE_CREDENTIALS JSON: {ex}")
+
+            if cred:
+                firebase_admin.initialize_app(cred, {"storageBucket": settings.firebase_storage_bucket})
+            else:
+                cred_path = settings.firebase_credentials_json
+                if os.path.exists(cred_path):
+                    cred = firebase_admin.credentials.Certificate(cred_path)
+                    firebase_admin.initialize_app(cred, {"storageBucket": settings.firebase_storage_bucket})
+                else:
+                    try:
+                        # In production (e.g. Render), default credentials might be used
+                        firebase_admin.initialize_app()
+                    except Exception:
+                        pass
+
+        if firebase_admin._apps:
+            decoded_token = firebase_auth.verify_id_token(token)
+            email = decoded_token.get("email")
+            role = "user"
+            if email == "admin@gmail.com":
+                role = "admin"
+            elif email == "pharmacist@pharmaagent.com":
+                role = "pharmacist"
+            return {
+                "sub": email,
+                "user_id": decoded_token.get("uid"),
+                "role": role,
+            }
+    except Exception as e:
+        logger.debug(f"Firebase token verification failed or skipped: {e}")
+
+    # 2. Fallback to custom JWT decoding
     try:
         payload = jwt.decode(
             token,

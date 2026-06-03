@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { loginUser } from "@/lib/api";
 import { saveAuth } from "@/lib/auth";
+import { auth, googleProvider } from "@/lib/firebase";
+import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import GlassCard from "@/components/GlassCard";
 
 const GoogleIcon = () => (
@@ -53,13 +55,14 @@ export default function LoginPage() {
         setError("");
         setLoading(true);
         try {
-            // Log in using default user demo account when using Google auth mock
-            const res = await loginUser({ email: "john@example.com", password: "user123" });
-            saveAuth(res.access_token, {
-                id: res.user.id,
-                name: res.user.name,
-                email: res.user.email,
-                role: res.user.role as "user" | "admin" | "pharmacist",
+            const result = await signInWithPopup(auth, googleProvider);
+            const user = result.user;
+            const token = await user.getIdToken();
+            saveAuth(token, {
+                id: user.uid,
+                name: user.displayName || "Google User",
+                email: user.email || "",
+                role: "user",
             });
             router.push("/chat");
         } catch (err: unknown) {
@@ -77,6 +80,35 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
+            // 1. Try Firebase Auth first
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, form.email, form.password);
+                const user = userCredential.user;
+                const token = await user.getIdToken();
+                saveAuth(token, {
+                    id: user.uid,
+                    name: user.displayName || user.email?.split("@")[0] || "User",
+                    email: user.email || "",
+                    role: selectedRole as "user" | "admin" | "pharmacist",
+                });
+
+                // Route correctly based on role
+                if (selectedRole === "admin") {
+                    router.push("/admin");
+                } else if (selectedRole === "pharmacist") {
+                    router.push("/pharmacist");
+                } else {
+                    router.push("/chat");
+                }
+                return;
+            } catch (fbErr: any) {
+                console.log("Firebase login failed, trying local DB backend:", fbErr.message);
+                if (fbErr.code === "auth/wrong-password" || fbErr.code === "auth/invalid-credential") {
+                    throw new Error("Invalid credentials (Firebase).");
+                }
+            }
+
+            // 2. Fallback to local Backend API (e.g. for offline seeded database users)
             const res = await loginUser(form);
             saveAuth(res.access_token, {
                 id: res.user.id,
@@ -85,16 +117,15 @@ export default function LoginPage() {
                 role: res.user.role as "user" | "admin" | "pharmacist",
             });
 
-            // Route correctly based on role
             if (res.user.role === "admin") {
                 router.push("/admin");
             } else if (res.user.role === "pharmacist") {
                 router.push("/pharmacist");
             } else {
-                router.push("/chat"); // User goes to chat by default
+                router.push("/chat");
             }
         } catch (err: unknown) {
-            let message = "Login failed. Please try again.";
+            let message = "Login failed. Please verify credentials.";
             if (err instanceof Error && err.message) message = err.message;
             setError(message);
         } finally {
@@ -129,23 +160,28 @@ export default function LoginPage() {
                 </div>
 
                 <GlassCard>
-                    <h2 className="text-xl font-bold text-[var(--text-color)] mb-2 text-center">Select Role to Login</h2>
-
-                    {/* Role Selector Tabs */}
-                    <div className="flex gap-2 p-1 bg-white dark:bg-slate-800/50 rounded-lg mb-6 border border-white/5">
-                        {["user", "admin", "pharmacist"].map((role) => (
-                            <button
-                                key={role}
-                                type="button"
-                                onClick={() => handleRoleSelect(role)}
-                                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all capitalize ${selectedRole === role
-                                    ? "bg-indigo-600 text-[var(--text-color)] shadow-md shadow-indigo-900/20"
-                                    : "text-slate-600 dark:text-slate-400 hover:text-[var(--text-color)] hover:bg-black/5 dark:bg-white/5"
-                                    }`}
+                    {/* Role Selector Dropdown (Shutter) */}
+                    <div className="mb-6">
+                        <label className="block text-sm text-slate-200 font-semibold mb-2" htmlFor="role-select">
+                            Select Role to Login
+                        </label>
+                        <div className="relative">
+                            <select
+                                id="role-select"
+                                value={selectedRole}
+                                onChange={(e) => handleRoleSelect(e.target.value)}
+                                className="input-glass w-full capitalize appearance-none pr-10 cursor-pointer bg-[#0d0a21] border border-white/10 text-[var(--text-color)] rounded-xl py-3 px-4 focus:border-indigo-500 focus:outline-none transition-all shadow-md"
                             >
-                                {role}
-                            </button>
-                        ))}
+                                <option value="user" className="bg-[#0a071b] text-slate-200">User</option>
+                                <option value="admin" className="bg-[#0a071b] text-slate-200">Admin</option>
+                                <option value="pharmacist" className="bg-[#0a071b] text-slate-200">Pharmacist</option>
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-indigo-400">
+                                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                                </svg>
+                            </div>
+                        </div>
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">

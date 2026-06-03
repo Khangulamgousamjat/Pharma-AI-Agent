@@ -16,7 +16,7 @@
 import { useEffect, useState } from "react";
 import GlassCard from "@/components/GlassCard";
 import SymptomFlow from "@/components/SymptomFlow";
-import { getUser } from "@/lib/auth";
+import { getUser, type User } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 
 const HOW_IT_WORKS = [
@@ -34,7 +34,7 @@ const LANGUAGE_OPTIONS = [
 
 export default function SymptomPage() {
     const router = useRouter();
-    const [user, setUser] = useState<{ id: number } | null>(null);
+    const [user, setUser] = useState<User | null>(null);
     const [language, setLanguage] = useState("en");
 
     useEffect(() => {

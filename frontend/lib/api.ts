@@ -228,7 +228,7 @@ export async function createOrder(medicine_id: number, quantity: number): Promis
  * @param userId - User ID
  * @returns List of orders
  */
-export async function getUserOrders(userId: number): Promise<Order[]> {
+export async function getUserOrders(userId: number | string): Promise<Order[]> {
     return apiFetch<Order[]>(`/orders/user/${userId}`, {
         headers: authHeader(),
     });
@@ -267,11 +267,11 @@ export interface AgentChatResponse {
  * @returns Agent response with action type and optional order ID
  */
 export async function sendAgentMessage(
-    userId: number,
+    userId: number | string,
     message: string
 ): Promise<AgentChatResponse> {
     const body = {
-        user_id: Number(userId),
+        user_id: userId,
         message: String(message ?? ""),
     };
     return apiFetch<AgentChatResponse>("/agent/chat", {
@@ -350,7 +350,7 @@ export interface VoiceMessageResponse {
  * @param language - ISO language code (en/hi/mr)
  */
 export async function sendVoiceMessage(
-    userId: number,
+    userId: number | string,
     transcript: string,
     language: string = "en"
 ): Promise<VoiceMessageResponse> {
@@ -397,7 +397,7 @@ export interface SymptomCheckResponse {
  * @param language - ISO language code
  */
 export async function startSymptomCheck(
-    userId: number,
+    userId: number | string,
     symptom: string,
     language: string = "en"
 ): Promise<SymptomCheckResponse> {
@@ -524,7 +524,7 @@ export interface UserPreferences {
  * @param preferences - New preference values
  */
 export async function updatePreferences(
-    userId: number,
+    userId: number | string,
     preferences: UserPreferences
 ): Promise<UserPreferences> {
     return apiFetch<UserPreferences>(
@@ -542,7 +542,7 @@ export async function updatePreferences(
  *
  * @param userId - User ID
  */
-export async function getPreferences(userId: number): Promise<UserPreferences> {
+export async function getPreferences(userId: number | string): Promise<UserPreferences> {
     return apiFetch<UserPreferences>(`/settings/preferences?user_id=${userId}`);
 }
 
@@ -588,7 +588,7 @@ export interface PrescriptionUploadResponse {
  * @returns Upload response with extracted medicine info
  */
 export async function uploadPrescription(
-    userId: number,
+    userId: number | string,
     file: File
 ): Promise<PrescriptionUploadResponse> {
     const formData = new FormData();
@@ -616,7 +616,7 @@ export async function uploadPrescription(
  * @param userId - User ID
  * @returns Array of prescription records
  */
-export async function getUserPrescriptions(userId: number): Promise<Prescription[]> {
+export async function getUserPrescriptions(userId: number | string): Promise<Prescription[]> {
     return apiFetch<Prescription[]>(`/prescriptions/user/${userId}`, {
         headers: authHeader(),
     });
@@ -681,7 +681,7 @@ export interface RefillPredictionResponse {
  * @param userId - User ID
  * @returns Array of refill alerts (soonest first)
  */
-export async function getRefillAlerts(userId: number): Promise<RefillAlert[]> {
+export async function getRefillAlerts(userId: number | string): Promise<RefillAlert[]> {
     return apiFetch<RefillAlert[]>(`/refill-alerts/user/${userId}`, {
         headers: authHeader(),
     });
@@ -694,7 +694,7 @@ export async function getRefillAlerts(userId: number): Promise<RefillAlert[]> {
  * @param userId - User to run prediction for
  * @returns Summary of alerts created/updated
  */
-export async function runRefillPrediction(userId: number): Promise<RefillPredictionResponse> {
+export async function runRefillPrediction(userId: number | string): Promise<RefillPredictionResponse> {
     return apiFetch<RefillPredictionResponse>("/refill-alerts/run-prediction", {
         method: "POST",
         headers: authHeader(),

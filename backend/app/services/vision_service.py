@@ -42,17 +42,7 @@ def _init_firebase():
     if _firebase_initialized:
         return
     try:
-        cred_path = settings.firebase_credentials_json
         bucket_name = settings.firebase_storage_bucket
-
-        if not os.path.exists(cred_path):
-            logger.warning(
-                f"[Firebase] Credentials file not found at '{cred_path}'. "
-                "Image uploads will be disabled. "
-                "Set FIREBASE_CREDENTIALS_JSON and FIREBASE_STORAGE_BUCKET in .env"
-            )
-            return
-
         if not bucket_name:
             logger.warning(
                 "[Firebase] FIREBASE_STORAGE_BUCKET is not set. "
@@ -60,10 +50,37 @@ def _init_firebase():
             )
             return
 
-        cred = credentials.Certificate(cred_path)
+        # Try to load credentials from FIREBASE_CREDENTIALS env variable first
+        firebase_creds_json = os.environ.get("FIREBASE_CREDENTIALS")
+        cred = None
+        if firebase_creds_json:
+            try:
+                import json
+                creds_dict = json.loads(firebase_creds_json)
+                cred = credentials.Certificate(creds_dict)
+                logger.info("[Firebase] Found FIREBASE_CREDENTIALS env var JSON string.")
+            except Exception as ex:
+                logger.error(f"[Firebase] Failed to parse FIREBASE_CREDENTIALS JSON string: {ex}")
+
+        # Fallback to credentials file path
+        if not cred:
+            cred_path = settings.firebase_credentials_json
+            if os.path.exists(cred_path):
+                cred = credentials.Certificate(cred_path)
+                logger.info(f"[Firebase] Loaded credentials from path: {cred_path}")
+            else:
+                logger.warning(
+                    f"[Firebase] Credentials file not found at '{cred_path}' and "
+                    "FIREBASE_CREDENTIALS env variable is not set. "
+                    "Image uploads will be disabled."
+                )
+                return
+
         if not firebase_admin._apps:
             firebase_admin.initialize_app(cred, {"storageBucket": bucket_name})
             logger.info(f"[Firebase] Storage initialized. Bucket: {bucket_name}")
+        else:
+            logger.info("[Firebase] Firebase already initialized.")
         _firebase_initialized = True
     except Exception as e:
         logger.error(f"[Firebase] Initialization failed: {e}", exc_info=True)

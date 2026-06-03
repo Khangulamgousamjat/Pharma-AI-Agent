@@ -9,7 +9,7 @@
 
 /** User data stored in JWT payload and localStorage */
 export interface User {
-  id: number;
+  id: number | string;
   name: string;
   email: string;
   role: "user" | "admin" | "pharmacist"; // Phase 2: added pharmacist role

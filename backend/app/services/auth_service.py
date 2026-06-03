@@ -133,7 +133,7 @@ def login_user(db: Session, data: UserLogin) -> TokenResponse:
 
 def get_current_user_from_token(db: Session, token: str) -> User:
     """
-    Resolve a JWT token to a User object.
+    Resolve a JWT or Firebase token to a User object. Creates shadow database record for Firebase users if missing.
 
     Used as a FastAPI dependency in protected routes.
 
@@ -157,10 +157,30 @@ def get_current_user_from_token(db: Session, token: str) -> User:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user = db.query(User).filter(User.email == payload.get("sub")).first()
+    email = payload.get("sub")
+    user = db.query(User).filter(User.email == email).first()
+    
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found.",
+        # Just-in-time user creation for Firebase users who don't exist in the local SQLite db yet
+        # Since verify_token succeeded, we can trust the email claims.
+        role = payload.get("role", "user")
+        
+        # Double check seeded email matches
+        if email == "admin@gmail.com":
+            role = "admin"
+        elif email == "pharmacist@pharmaagent.com":
+            role = "pharmacist"
+            
+        user = User(
+            name=email.split("@")[0].capitalize(),
+            email=email,
+            password_hash="", # No local password hash needed for Firebase-only users
+            role=role,
+            is_approved=1
         )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        logger.info(f"JIT created local SQLite database record for Firebase user: {email} (role={role})")
+        
     return user

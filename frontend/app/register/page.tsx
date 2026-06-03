@@ -15,6 +15,8 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { registerUser, loginUser } from "@/lib/api";
 import { saveAuth } from "@/lib/auth";
+import { auth, googleProvider } from "@/lib/firebase";
+import { createUserWithEmailAndPassword, signInWithPopup, updateProfile } from "firebase/auth";
 import GlassCard from "@/components/GlassCard";
 
 const GoogleIcon = () => (
@@ -50,13 +52,14 @@ export default function RegisterPage() {
         setError("");
         setLoading(true);
         try {
-            // Mock google login using John Demo account
-            const res = await loginUser({ email: "john@example.com", password: "user123" });
-            saveAuth(res.access_token, {
-                id: res.user.id,
-                name: res.user.name,
-                email: res.user.email,
-                role: res.user.role as "user" | "admin" | "pharmacist",
+            const result = await signInWithPopup(auth, googleProvider);
+            const user = result.user;
+            const token = await user.getIdToken();
+            saveAuth(token, {
+                id: user.uid,
+                name: user.displayName || "Google User",
+                email: user.email || "",
+                role: "user",
             });
             router.push("/chat");
         } catch (err: unknown) {
@@ -76,6 +79,34 @@ export default function RegisterPage() {
         }
         setLoading(true);
         try {
+            // 1. Try Firebase Auth registration first
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, form.email, form.password);
+                const user = userCredential.user;
+                await updateProfile(user, { displayName: form.name });
+                const token = await user.getIdToken();
+
+                if (form.role === "pharmacist") {
+                    setSuccessMessage("Registration successful! Your account is pending admin approval. You will be able to log in once approved.");
+                    setForm({ name: "", email: "", password: "", role: "pharmacist" });
+                } else {
+                    saveAuth(token, {
+                        id: user.uid,
+                        name: form.name,
+                        email: form.email,
+                        role: "user",
+                    });
+                    router.push("/chat");
+                }
+                return;
+            } catch (fbErr: any) {
+                console.log("Firebase registration failed, trying local DB backend:", fbErr.message);
+                if (fbErr.code === "auth/email-already-in-use") {
+                    throw new Error("Email already registered in Firebase.");
+                }
+            }
+
+            // 2. Fallback to local DB backend API
             const res = await registerUser(form);
 
             if (form.role === "pharmacist") {
@@ -118,21 +149,27 @@ export default function RegisterPage() {
                     <h2 className="text-xl font-bold text-[var(--text-color)] mb-6">Create Account</h2>
 
                     <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
-                        {/* Role Selector */}
-                        <div className="flex gap-2 p-1 bg-white dark:bg-slate-800/50 rounded-lg mb-4 border border-white/5">
-                            {["user", "pharmacist"].map((role) => (
-                                <button
-                                    key={role}
-                                    type="button"
-                                    onClick={() => setForm({ ...form, role })}
-                                    className={`flex-1 py-1.5 px-3 rounded-md text-xs font-medium transition-all capitalize ${form.role === role
-                                        ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/20"
-                                        : "text-slate-600 dark:text-slate-400 hover:text-indigo-400"
-                                        }`}
+                        {/* Role Selector Dropdown (Shutter) */}
+                        <div className="mb-4">
+                            <label className="block text-sm text-slate-200 font-semibold mb-2" htmlFor="role-select">
+                                Select Role
+                            </label>
+                            <div className="relative">
+                                <select
+                                    id="role-select"
+                                    value={form.role}
+                                    onChange={(e) => setForm({ ...form, role: e.target.value })}
+                                    className="input-glass w-full capitalize appearance-none pr-10 cursor-pointer bg-[#0d0a21] border border-white/10 text-[var(--text-color)] rounded-xl py-2 px-3 focus:border-indigo-500 focus:outline-none transition-all shadow-md text-xs font-medium"
                                 >
-                                    {role}
-                                </button>
-                            ))}
+                                    <option value="user" className="bg-[#0a071b] text-slate-200">User</option>
+                                    <option value="pharmacist" className="bg-[#0a071b] text-slate-200">Pharmacist</option>
+                                </select>
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-indigo-400">
+                                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                                    </svg>
+                                </div>
+                            </div>
                         </div>
 
                         <div>
