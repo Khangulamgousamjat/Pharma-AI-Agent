@@ -28,7 +28,7 @@ export const BASE_URL = (() => {
         }
     }
     // Default fallback for hosted production deployments
-    return "https://pharmaagent-api.onrender.com";
+    return "https://pharmaagent.onrender.com";
 })();
 
 // ---------------------------------------------------------------------------
