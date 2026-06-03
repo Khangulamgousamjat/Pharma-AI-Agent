@@ -25,21 +25,6 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen text-[var(--text-color)] selection:bg-indigo-500/30">
       
-      {/* --- Fixed Background Video --- */}
-      <div className="video-bg-wrapper">
-        <video
-          className="video-bg"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-        >
-          <source src="/videoplayback.webm" type="video/webm" />
-        </video>
-        <div className="video-bg-overlay" />
-      </div>
-      
       {/* --- Sticky Navigation --- */}
       <nav className="navbar sticky top-0 z-[100] border-b border-white/5 bg-[#0f0c29]/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
