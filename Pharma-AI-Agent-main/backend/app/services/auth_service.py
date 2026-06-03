@@ -1,35 +1,45 @@
 """
 services/auth_service.py — Business logic for user authentication.
 
-Updated for Firebase Migration.
+Separates authentication logic from route handlers, keeping routes thin.
 """
 
+from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 import logging
-from firebase_admin import firestore
 
 from app.models.user import User
-from app.schemas.user import UserRegister, UserResponse, TokenResponse
-from app.utils.security import verify_token
+from app.schemas.user import UserRegister, UserLogin, UserResponse, TokenResponse
+from app.utils.security import hash_password, verify_password, create_access_token
 
 logger = logging.getLogger(__name__)
 
 
-def register_user(db: firestore.Client, data: UserRegister) -> UserResponse:
+def register_user(db: Session, data: UserRegister) -> TokenResponse:
     """
-    Register a new user account profile in Firestore.
+    Register a new user account.
 
-    Note: With Firebase Auth, the actual user creation (email/password) should 
-    happen on the frontend using the Firebase Client SDK. The frontend then calls 
-    this endpoint (or a Cloud Function) to create the user profile document in Firestore.
+    Checks for duplicate email, hashes the password, creates the user,
+    and returns a JWT token immediately (auto-login after register).
 
     Args:
-        db: Firestore client
-        data: Registration data (name, email)
+        db: Database session
+        data: Registration data (name, email, password)
 
     Returns:
-        UserResponse: user info
+        TokenResponse: JWT access token + user info
+
+    Raises:
+        HTTPException 400: If email is already registered
     """
+    # Check if email is already in use
+    existing = db.query(User).filter(User.email == data.email).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered. Please use a different email or login.",
+        )
+
     # Block admin registration
     if data.role == "admin":
         raise HTTPException(
@@ -38,55 +48,98 @@ def register_user(db: firestore.Client, data: UserRegister) -> UserResponse:
         )
 
     # Determine approval status based on role
+    # Pharmacists (role='pharmacist') require approval (is_approved=0)
+    # Regular users (role='user') are auto-approved (is_approved=1)
     is_approved = 1 if data.role == "user" else 0
 
-    # Create the user profile in Firestore
-    # We use a query to check if email exists to prevent duplicates, though Firebase Auth handles this too.
-    users_ref = db.collection("users")
-    existing = users_ref.where("email", "==", data.email).limit(1).get()
-    
-    if existing:
-         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered in Firestore.",
-        )
-
-    # Note: in a true Firebase flow, the document ID should be the Firebase Auth UID.
-    # We'll let Firestore generate an ID for now if no UID is provided.
-    new_user_ref = users_ref.document()
+    # Hash password before storing — NEVER save plaintext
     user = User(
-        id=new_user_ref.id,
         name=data.name,
         email=data.email,
+        password_hash=hash_password(data.password),
         role=data.role,
         is_approved=is_approved,
     )
-    
-    new_user_ref.set(user.to_dict())
+    db.add(user)
+    db.commit()
+    db.refresh(user)
 
-    logger.info(f"New user profile created: {user.email} (id={user.id}, role={user.role})")
-    return UserResponse.model_validate(user.model_dump())
+    # For pharmacists, don't return a token yet (they need approval)
+    if not is_approved:
+        return TokenResponse(
+            access_token="",
+            user=UserResponse.model_validate(user),
+        )
 
+    # Generate JWT for immediate authentication for auto-approved users
+    token = create_access_token({
+        "sub": user.email,
+        "user_id": user.id,
+        "role": user.role,
+    })
 
-def login_user(db: firestore.Client, data: dict) -> dict:
-    """
-    With Firebase Auth, login is handled by the client SDK. 
-    This endpoint is deprecated or can be used to just fetch the user profile 
-    after the client logs in.
-    """
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Login should be performed on the client-side using Firebase Auth SDK.",
+    logger.info(f"New user registered: {user.email} (id={user.id}, role={user.role})")
+    return TokenResponse(
+        access_token=token,
+        user=UserResponse.model_validate(user),
     )
 
 
-def get_current_user_from_token(db: firestore.Client, token: str) -> User:
+def login_user(db: Session, data: UserLogin) -> TokenResponse:
     """
-    Resolve a Firebase ID token to a User object.
+    Authenticate a user with email and password.
 
     Args:
-        db: Firestore client
-        token: Firebase ID token string
+        db: Database session
+        data: Login credentials (email, password)
+
+    Returns:
+        TokenResponse: JWT access token + user info
+
+    Raises:
+        HTTPException 401: If credentials are invalid
+    """
+    # Fetch user by email
+    user = db.query(User).filter(User.email == data.email).first()
+
+    # Verify credentials — use constant-time comparison via bcrypt
+    if not user or not verify_password(data.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Check if user is approved (pharmacists require approval)
+    if not user.is_approved:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is pending admin approval. Please check back later.",
+        )
+
+    # Issue JWT token
+    token = create_access_token({
+        "sub": user.email,
+        "user_id": user.id,
+        "role": user.role,
+    })
+
+    logger.info(f"User logged in: {user.email} (id={user.id})")
+    return TokenResponse(
+        access_token=token,
+        user=UserResponse.model_validate(user),
+    )
+
+
+def get_current_user_from_token(db: Session, token: str) -> User:
+    """
+    Resolve a JWT or Firebase token to a User object. Creates shadow database record for Firebase users if missing.
+
+    Used as a FastAPI dependency in protected routes.
+
+    Args:
+        db: Database session
+        token: JWT access token string
 
     Returns:
         User: Authenticated user
@@ -94,31 +147,40 @@ def get_current_user_from_token(db: firestore.Client, token: str) -> User:
     Raises:
         HTTPException 401: If token is invalid or user not found
     """
+    from app.utils.security import verify_token
+
     payload = verify_token(token)
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired Firebase token.",
+            detail="Invalid or expired token.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    email = payload.get("email")
-    if not email:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload (no email).",
-        )
-
-    users_ref = db.collection("users")
-    docs = users_ref.where("email", "==", email).limit(1).get()
+    email = payload.get("sub")
+    user = db.query(User).filter(User.email == email).first()
     
-    if not docs:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User profile not found in Firestore.",
-        )
+    if not user:
+        # Just-in-time user creation for Firebase users who don't exist in the local SQLite db yet
+        # Since verify_token succeeded, we can trust the email claims.
+        role = payload.get("role", "user")
         
-    user_doc = docs[0].to_dict()
-    user_doc['id'] = docs[0].id
-    
-    return User(**user_doc)
+        # Double check seeded email matches
+        if email == "admin@gmail.com":
+            role = "admin"
+        elif email == "pharmacist@pharmaagent.com":
+            role = "pharmacist"
+            
+        user = User(
+            name=email.split("@")[0].capitalize(),
+            email=email,
+            password_hash="", # No local password hash needed for Firebase-only users
+            role=role,
+            is_approved=1
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        logger.info(f"JIT created local SQLite database record for Firebase user: {email} (role={role})")
+        
+    return user

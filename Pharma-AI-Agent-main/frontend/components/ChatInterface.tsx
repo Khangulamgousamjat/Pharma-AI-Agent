@@ -31,7 +31,7 @@ interface Message {
 }
 
 interface ChatInterfaceProps {
-    userId: number;
+    userId: number | string;
 }
 
 /** Extract a safe, readable error message from any thrown value */

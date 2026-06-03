@@ -13,27 +13,82 @@ validate and potentially automate order creation.
 Integration notes:
   - Uses google-generativeai (Gemini 2.0 Flash vision model)
   - Falls back gracefully if vision extraction fails (returns raw text)
-  - Images are saved locally before being sent to the API
+  - Images are uploaded to Firebase Storage
 """
 
 import base64
 import json
 import logging
 import os
+import time
 from pathlib import Path
 from typing import Optional
 
-from supabase import create_client, Client
+import firebase_admin
+from firebase_admin import credentials, storage
 import google.generativeai as genai
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Initialize Supabase client
-supabase: Optional[Client] = None
-if settings.supabase_url and settings.supabase_key:
-    supabase = create_client(settings.supabase_url, settings.supabase_key)
-    logger.info("Supabase Storage client initialized.")
+# ---------------------------------------------------------------------------
+# Firebase Storage Initialization
+# ---------------------------------------------------------------------------
+_firebase_initialized = False
+
+def _init_firebase():
+    """Initialize Firebase Admin SDK (singleton — only once at startup)."""
+    global _firebase_initialized
+    if _firebase_initialized:
+        return
+    try:
+        bucket_name = settings.firebase_storage_bucket
+        if not bucket_name:
+            logger.warning(
+                "[Firebase] FIREBASE_STORAGE_BUCKET is not set. "
+                "Image uploads will be disabled."
+            )
+            return
+
+        # Try to load credentials from FIREBASE_CREDENTIALS env variable first
+        firebase_creds_json = os.environ.get("FIREBASE_CREDENTIALS")
+        cred = None
+        if firebase_creds_json:
+            try:
+                import json
+                creds_dict = json.loads(firebase_creds_json)
+                cred = credentials.Certificate(creds_dict)
+                logger.info("[Firebase] Found FIREBASE_CREDENTIALS env var JSON string.")
+            except Exception as ex:
+                logger.error(f"[Firebase] Failed to parse FIREBASE_CREDENTIALS JSON string: {ex}")
+
+        # Fallback to credentials file path
+        if not cred:
+            cred_path = settings.firebase_credentials_json
+            if os.path.exists(cred_path):
+                cred = credentials.Certificate(cred_path)
+                logger.info(f"[Firebase] Loaded credentials from path: {cred_path}")
+            else:
+                logger.warning(
+                    f"[Firebase] Credentials file not found at '{cred_path}' and "
+                    "FIREBASE_CREDENTIALS env variable is not set. "
+                    "Image uploads will be disabled."
+                )
+                return
+
+        if not firebase_admin._apps:
+            firebase_admin.initialize_app(cred, {"storageBucket": bucket_name})
+            logger.info(f"[Firebase] Storage initialized. Bucket: {bucket_name}")
+        else:
+            logger.info("[Firebase] Firebase already initialized.")
+        _firebase_initialized = True
+    except Exception as e:
+        logger.error(f"[Firebase] Initialization failed: {e}", exc_info=True)
+
+
+# Initialize on module import
+_init_firebase()
+
 
 # ---------------------------------------------------------------------------
 # Vision Model Configuration
@@ -197,45 +252,49 @@ async def extract_medicine_data_from_image(file_bytes: bytes, filename: str) -> 
 
 def save_uploaded_image(file_bytes: bytes, filename: str) -> str:
     """
-    Save an uploaded prescription image directly to Supabase Storage.
+    Upload a prescription image to Firebase Storage.
 
     Args:
         file_bytes: Raw image bytes from the multipart upload
         filename: Original filename from the upload request
 
     Returns:
-        str: Public URL path to the saved file
+        str: Public URL of the uploaded file in Firebase Storage
     """
-    import time
-    
-    if not supabase:
-        raise ValueError("Supabase is not configured properly in the environment.")
+    if not _firebase_initialized:
+        raise ValueError(
+            "Firebase Storage is not configured. "
+            "Please set FIREBASE_CREDENTIALS_JSON and FIREBASE_STORAGE_BUCKET in .env "
+            "and place your firebase-credentials.json in the backend directory."
+        )
 
     # Generate unique filename to avoid collisions
     timestamp = int(time.time())
     ext = Path(filename).suffix.lower() or ".jpg"
-    safe_name = f"prescription_{timestamp}{ext}"
+    safe_name = f"prescriptions/prescription_{timestamp}{ext}"
 
     try:
-        bucket = settings.supabase_bucket
-        
         # Determine content type
         content_type = "image/jpeg"
-        if ext == ".png": content_type = "image/png"
-        elif ext == ".webp": content_type = "image/webp"
-        
-        # Upload buffer to Supabase
-        res = supabase.storage.from_(bucket).upload(
-            file=file_bytes,
-            path=safe_name,
-            file_options={"content-type": content_type}
-        )
-        
-        # Retrieve the public URL
-        public_url = supabase.storage.from_(bucket).get_public_url(safe_name)
-        
-        logger.info(f"[VisionService] Image uploaded to Supabase: {public_url}")
+        if ext == ".png":
+            content_type = "image/png"
+        elif ext == ".webp":
+            content_type = "image/webp"
+        elif ext == ".gif":
+            content_type = "image/gif"
+
+        # Upload to Firebase Storage
+        bucket = storage.bucket()
+        blob = bucket.blob(safe_name)
+        blob.upload_from_string(file_bytes, content_type=content_type)
+
+        # Make publicly accessible and get URL
+        blob.make_public()
+        public_url = blob.public_url
+
+        logger.info(f"[VisionService] Image uploaded to Firebase Storage: {public_url}")
         return public_url
+
     except Exception as e:
-        logger.error(f"[VisionService] Supabase upload failed: {e}")
+        logger.error(f"[VisionService] Firebase Storage upload failed: {e}")
         raise e
