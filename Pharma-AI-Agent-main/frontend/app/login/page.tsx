@@ -103,9 +103,6 @@ export default function LoginPage() {
                 return;
             } catch (fbErr: any) {
                 console.log("Firebase login failed, trying local DB backend:", fbErr.message);
-                if (fbErr.code === "auth/wrong-password" || fbErr.code === "auth/invalid-credential") {
-                    throw new Error("Invalid credentials (Firebase).");
-                }
             }
 
             // 2. Fallback to local Backend API (e.g. for offline seeded database users)

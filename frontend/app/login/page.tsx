@@ -4,7 +4,7 @@ import { useState, FormEvent, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
-import { loginUser } from "@/lib/api";
+import { loginUser, getMe } from "@/lib/api";
 import { saveAuth } from "@/lib/auth";
 import { auth, googleProvider } from "@/lib/firebase";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
@@ -58,11 +58,18 @@ export default function LoginPage() {
             const result = await signInWithPopup(auth, googleProvider);
             const user = result.user;
             const token = await user.getIdToken();
+            
+            // Save token temporarily so getMe() headers can read it
+            localStorage.setItem("pharmaagent_token", token);
+            
+            // Fetch backend profile (registers shadow user record JIT)
+            const backendUser = await getMe();
+            
             saveAuth(token, {
-                id: user.uid,
-                name: user.displayName || "Google User",
-                email: user.email || "",
-                role: "user",
+                id: backendUser.id,
+                name: backendUser.name,
+                email: backendUser.email,
+                role: backendUser.role as "user" | "admin" | "pharmacist",
             });
             router.push("/chat");
         } catch (err: unknown) {
@@ -85,17 +92,24 @@ export default function LoginPage() {
                 const userCredential = await signInWithEmailAndPassword(auth, form.email, form.password);
                 const user = userCredential.user;
                 const token = await user.getIdToken();
+                
+                // Save token temporarily so getMe() headers can read it
+                localStorage.setItem("pharmaagent_token", token);
+                
+                // Fetch backend profile (registers shadow user record JIT)
+                const backendUser = await getMe();
+                
                 saveAuth(token, {
-                    id: user.uid,
-                    name: user.displayName || user.email?.split("@")[0] || "User",
-                    email: user.email || "",
-                    role: selectedRole as "user" | "admin" | "pharmacist",
+                    id: backendUser.id,
+                    name: backendUser.name,
+                    email: backendUser.email,
+                    role: backendUser.role as "user" | "admin" | "pharmacist",
                 });
 
                 // Route correctly based on role
-                if (selectedRole === "admin") {
+                if (backendUser.role === "admin") {
                     router.push("/admin");
-                } else if (selectedRole === "pharmacist") {
+                } else if (backendUser.role === "pharmacist") {
                     router.push("/pharmacist");
                 } else {
                     router.push("/chat");
@@ -103,9 +117,6 @@ export default function LoginPage() {
                 return;
             } catch (fbErr: any) {
                 console.log("Firebase login failed, trying local DB backend:", fbErr.message);
-                if (fbErr.code === "auth/wrong-password" || fbErr.code === "auth/invalid-credential") {
-                    throw new Error("Invalid credentials (Firebase).");
-                }
             }
 
             // 2. Fallback to local Backend API (e.g. for offline seeded database users)

@@ -13,7 +13,7 @@ import { useState, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
-import { registerUser, loginUser } from "@/lib/api";
+import { registerUser, loginUser, getMe } from "@/lib/api";
 import { saveAuth } from "@/lib/auth";
 import { auth, googleProvider } from "@/lib/firebase";
 import { createUserWithEmailAndPassword, signInWithPopup, updateProfile } from "firebase/auth";
@@ -55,11 +55,18 @@ export default function RegisterPage() {
             const result = await signInWithPopup(auth, googleProvider);
             const user = result.user;
             const token = await user.getIdToken();
+            
+            // Save token temporarily so getMe() headers can read it
+            localStorage.setItem("pharmaagent_token", token);
+            
+            // Fetch backend profile (registers shadow user record JIT)
+            const backendUser = await getMe();
+            
             saveAuth(token, {
-                id: user.uid,
-                name: user.displayName || "Google User",
-                email: user.email || "",
-                role: "user",
+                id: backendUser.id,
+                name: backendUser.name,
+                email: backendUser.email,
+                role: backendUser.role as "user" | "admin" | "pharmacist",
             });
             router.push("/chat");
         } catch (err: unknown) {
@@ -86,15 +93,21 @@ export default function RegisterPage() {
                 await updateProfile(user, { displayName: form.name });
                 const token = await user.getIdToken();
 
-                if (form.role === "pharmacist") {
+                // Save token temporarily so getMe() headers can read it
+                localStorage.setItem("pharmaagent_token", token);
+                
+                // Fetch backend profile (registers shadow user record JIT)
+                const backendUser = await getMe();
+
+                if (backendUser.role === "pharmacist") {
                     setSuccessMessage("Registration successful! Your account is pending admin approval. You will be able to log in once approved.");
                     setForm({ name: "", email: "", password: "", role: "pharmacist" });
                 } else {
                     saveAuth(token, {
-                        id: user.uid,
-                        name: form.name,
-                        email: form.email,
-                        role: "user",
+                        id: backendUser.id,
+                        name: backendUser.name,
+                        email: backendUser.email,
+                        role: backendUser.role as "user" | "admin" | "pharmacist",
                     });
                     router.push("/chat");
                 }

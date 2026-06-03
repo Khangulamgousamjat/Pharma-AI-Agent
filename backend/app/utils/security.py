@@ -134,9 +134,37 @@ def verify_token(token: str) -> Optional[dict]:
                 role = "admin"
             elif email == "pharmacist@pharmaagent.com":
                 role = "pharmacist"
+
+            # Query the database to resolve or JIT create the user and get their integer ID!
+            from app.database import SessionLocal
+            from app.models.user import User
+
+            db = SessionLocal()
+            try:
+                user = db.query(User).filter(User.email == email).first()
+                if not user:
+                    # JIT create shadow user
+                    user = User(
+                        name=email.split("@")[0].capitalize(),
+                        email=email,
+                        password_hash="",
+                        role=role,
+                        is_approved=1
+                    )
+                    db.add(user)
+                    db.commit()
+                    db.refresh(user)
+                    logger.info(f"[Firebase Token Verification] JIT created local shadow user for {email}")
+                user_id = user.id
+            except Exception as db_ex:
+                logger.error(f"[Firebase Token Verification] Database lookup/JIT creation failed: {db_ex}")
+                user_id = decoded_token.get("uid")  # Fallback to Firebase UID string if DB fails
+            finally:
+                db.close()
+
             return {
                 "sub": email,
-                "user_id": decoded_token.get("uid"),
+                "user_id": user_id,
                 "role": role,
             }
     except Exception as e:

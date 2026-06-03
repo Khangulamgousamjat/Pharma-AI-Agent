@@ -128,6 +128,15 @@ export async function loginUser(data: LoginData): Promise<AuthResponse> {
 }
 
 /**
+ * Get the current authenticated user's details from backend.
+ */
+export async function getMe(): Promise<AuthResponse["user"]> {
+    return apiFetch<AuthResponse["user"]>("/auth/me", {
+        headers: authHeader(),
+    });
+}
+
+/**
  * Fetch all pharmacists awaiting admin approval.
  * Admin role required.
  */
