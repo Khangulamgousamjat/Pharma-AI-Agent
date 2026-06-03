@@ -16,16 +16,17 @@ import { authHeader } from "./auth";
 
 /** Base URL resolved dynamically depending on environment to support local and hosted testing */
 export const BASE_URL = (() => {
-    // If a custom env variable is set, prioritize it
-    if (process.env.NEXT_PUBLIC_API_URL) {
-        return process.env.NEXT_PUBLIC_API_URL;
-    }
-    // Dynamic runtime fallback in the browser
+    // Dynamic runtime check in the browser
     if (typeof window !== "undefined") {
         const hostname = window.location.hostname;
         if (hostname === "localhost" || hostname === "127.0.0.1") {
-            return "http://localhost:8000";
+            return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
         }
+    }
+    // In production (Vercel/Render): only use env variable if it is a secure remote hosted URL
+    const envUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+        return envUrl;
     }
     // Default fallback for hosted production deployments
     return "https://pharmaagent.onrender.com";
