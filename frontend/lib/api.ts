@@ -14,8 +14,22 @@
 
 import { authHeader } from "./auth";
 
-/** Base URL loaded from environment variable */
-export const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+/** Base URL resolved dynamically depending on environment to support local and hosted testing */
+export const BASE_URL = (() => {
+    // If a custom env variable is set, prioritize it
+    if (process.env.NEXT_PUBLIC_API_URL) {
+        return process.env.NEXT_PUBLIC_API_URL;
+    }
+    // Dynamic runtime fallback in the browser
+    if (typeof window !== "undefined") {
+        const hostname = window.location.hostname;
+        if (hostname === "localhost" || hostname === "127.0.0.1") {
+            return "http://localhost:8000";
+        }
+    }
+    // Default fallback for hosted production deployments
+    return "https://pharmaagent-api.onrender.com";
+})();
 
 // ---------------------------------------------------------------------------
 // Generic fetch wrapper
